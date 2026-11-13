@@ -23,9 +23,6 @@ export function MessageThread({ conversationId, messages, group, starters }: { c
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length]);
-  useEffect(() => {
-    if (state.ok) setDraft("");
-  }, [state]);
 
   return (
     <div className="flex h-[calc(100dvh-17rem)] min-h-[24rem] flex-col rounded-3xl border border-sand/70 bg-paper shadow-soft lg:h-[calc(100dvh-14rem)]">
@@ -58,7 +55,14 @@ export function MessageThread({ conversationId, messages, group, starters }: { c
             {state.error}
           </p>
         )}
-        <form ref={formRef} action={formAction} className="flex items-end gap-2">
+        <form
+          ref={formRef}
+          action={(fd) => {
+            setDraft("");
+            formAction(fd);
+          }}
+          className="flex items-end gap-2"
+        >
           <input type="hidden" name="conversationId" value={conversationId} />
           <label htmlFor="message-input" className="sr-only">
             Write a message

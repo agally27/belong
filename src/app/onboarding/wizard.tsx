@@ -40,7 +40,16 @@ export function OnboardingWizard({ initialName, companionName, topics, consents 
   };
 
   return (
-    <form action={formAction}>
+    <form
+      action={formAction}
+      onKeyDown={(e) => {
+        // Enter moves to the next step rather than submitting early.
+        if (e.key === "Enter" && step < STEPS.length - 1 && (e.target as HTMLElement).tagName !== "TEXTAREA" && (e.target as HTMLElement).tagName !== "BUTTON") {
+          e.preventDefault();
+          next();
+        }
+      }}
+    >
       <p className="text-sm font-medium text-lavender-600" aria-live="polite">
         Step {step + 1} of {STEPS.length} · {STEPS[step]}
       </p>
@@ -214,11 +223,11 @@ export function OnboardingWizard({ initialName, companionName, topics, consents 
           Back
         </Button>
         {step < STEPS.length - 1 ? (
-          <Button type="button" onClick={next}>
+          <Button key="next" type="button" onClick={next}>
             Continue
           </Button>
         ) : (
-          <Button type="submit" variant="accent" disabled={pending}>
+          <Button key="finish" type="submit" variant="accent" disabled={pending}>
             {pending ? "Setting things up…" : "Finish and meet my companion"}
           </Button>
         )}

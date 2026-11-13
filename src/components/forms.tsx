@@ -105,6 +105,11 @@ export function ActionButton({
           {state.error}
         </span>
       )}
+      {state.message && (
+        <span role="status" className="max-w-sm text-xs text-sage-700">
+          {state.message}
+        </span>
+      )}
     </form>
   );
 }
@@ -113,7 +118,12 @@ export function ActionButton({
 export function AutoSwitch({ action, fields, checked, label }: { action: FormAction; fields: Record<string, string>; checked: boolean; label: string }) {
   const [state, formAction, pending] = useActionState(action, {});
   const [on, setOn] = useState(checked);
-  useEffect(() => setOn(checked), [checked]);
+  // Re-sync when the server value changes (derived-state pattern, no effect needed).
+  const [prev, setPrev] = useState(checked);
+  if (prev !== checked) {
+    setPrev(checked);
+    setOn(checked);
+  }
   const ref = useRef<HTMLFormElement>(null);
   return (
     <form ref={ref} action={formAction} className="flex flex-col items-end gap-1">

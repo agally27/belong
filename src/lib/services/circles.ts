@@ -153,6 +153,14 @@ export async function joinCircle(userId: string, circleId: string) {
     if (members.some((m) => blocked.has(m.user_id))) throw new AppError("This Circle isn't available to join.", "forbidden");
     await assertCircleCapacity(userId);
     await db.run("INSERT INTO circle_members (circle_id, user_id, role, joined_at) VALUES (?, ?, 'member', ?)", [circleId, userId, now()]);
+    // Earlier chat is visible to the newcomer but shouldn't count as unread.
+    const conv = await db.get<{ id: string }>("SELECT id FROM conversations WHERE circle_id = ?", [circleId]);
+    if (conv) {
+      await db.run(
+        "INSERT INTO conversation_reads (conversation_id, user_id, last_read_at) VALUES (?, ?, ?) ON CONFLICT (conversation_id, user_id) DO UPDATE SET last_read_at = excluded.last_read_at",
+        [conv.id, userId, now()],
+      );
+    }
     const host = members.find((m) => m.role === "host");
     if (host) await notify(host.user_id, "circle", `Someone new joined ${circle.name}`, "Say hello and make them feel welcome.", `/circles/${circleId}`);
   });

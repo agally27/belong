@@ -59,6 +59,7 @@ export async function runNetwork(opts: { forUserId?: string; actorId?: string | 
   const result: NetworkRunResult = { membersConsidered: ids.length, pairsCompared: 0, matchesCreated: 0, matchesUpdated: 0, matchesRetired: 0, signalsExpired };
   const seen = new Set<string>();
   const ts = now();
+  const fresh = new Map<string, string[]>(); // member -> topics of their new suggestions
 
   for (let i = 0; i < ids.length; i++) {
     for (let j = i + 1; j < ids.length; j++) {
@@ -90,12 +91,8 @@ export async function runNetwork(opts: { forUserId?: string; actorId?: string | 
           [id, a, b, m.score, JSON.stringify(m.dimensions), JSON.stringify(m.reasons), ts, ts],
         );
         result.matchesCreated++;
-        if (!opts.quiet) {
-          const topic = m.topics[0] ? topicLabel(m.topics[0]) : "something in common";
-          for (const u of [a, b]) {
-            await notify(u, "match", "Your companion noticed someone", `A possible connection around ${topic}. Take a look when you have a moment.`, "/discover");
-          }
-        }
+        const topic = m.topics[0] && !m.topics[0].startsWith("p:") ? topicLabel(m.topics[0]) : "something in common";
+        for (const u of [a, b]) fresh.set(u, [...(fresh.get(u) ?? []), topic]);
       } else if (prev.status === "suggested" || prev.status === "retired") {
         await db.run("UPDATE matches SET score = ?, dimensions = ?, reasons = ?, status = 'suggested', updated_at = ? WHERE id = ?", [
           m.score,
@@ -115,6 +112,17 @@ export async function runNetwork(opts: { forUserId?: string; actorId?: string | 
     if (opts.forUserId && m.user_a !== opts.forUserId && m.user_b !== opts.forUserId) continue;
     await db.run("UPDATE matches SET status = 'retired', updated_at = ? WHERE id = ?", [ts, m.id]);
     result.matchesRetired++;
+  }
+
+  // One gentle notification per member per run, however many suggestions are new.
+  if (!opts.quiet) {
+    for (const [u, topics] of fresh) {
+      if (topics.length === 1) {
+        await notify(u, "match", "Your companion noticed someone", `A possible connection around ${topics[0]}. Take a look when you have a moment.`, "/discover");
+      } else {
+        await notify(u, "match", `Your companion noticed ${topics.length} people`, "There are new possible connections waiting in Discover, each with the reasons why.", "/discover");
+      }
+    }
   }
 
   await audit(opts.actorId ?? null, "network.run", "network", opts.forUserId ?? "all", { ...result });

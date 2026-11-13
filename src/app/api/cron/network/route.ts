@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  *   curl -X POST -H "Authorization: Bearer $CRON_SECRET" https://<host>/api/cron/network
  * Disabled unless CRON_SECRET is set.
  */
-export async function POST(req: Request) {
+async function handle(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return NextResponse.json({ error: "CRON_SECRET is not configured." }, { status: 503 });
   const given = Buffer.from(req.headers.get("authorization") ?? "");
@@ -20,3 +20,7 @@ export async function POST(req: Request) {
   }
   return NextResponse.json(await runNetwork());
 }
+
+// Schedulers differ: some send POST, some (e.g. Vercel Cron) send GET. Both need the secret.
+export const POST = handle;
+export const GET = handle;

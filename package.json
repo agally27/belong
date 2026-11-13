@@ -14,7 +14,9 @@
     "db:migrate": "tsx scripts/db.ts migrate",
     "db:seed": "tsx scripts/db.ts seed",
     "db:reset": "tsx scripts/db.ts reset",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run build"
+    "check": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "db:make-admin": "tsx scripts/db.ts make-admin",
+    "test:pg": "TEST_DATABASE_URL=${TEST_DATABASE_URL:-postgres://postgres:postgres@localhost:5432/belong_test} vitest run tests/postgres.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",

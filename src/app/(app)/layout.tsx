@@ -21,7 +21,12 @@ async function navCounts(userId: string) {
     "SELECT COUNT(*) AS n FROM matches WHERE status = 'suggested' AND ((user_a = ? AND a_state = 'new') OR (user_b = ? AND b_state = 'new'))",
     [userId, userId],
   );
+  const gatherings = await db.get<{ n: number }>(
+    "SELECT COUNT(*) AS n FROM gathering_invites i JOIN gatherings g ON g.id = i.gathering_id WHERE i.user_id = ? AND i.status = 'invited' AND g.status IN ('proposed', 'confirmed') AND g.starts_at > ?",
+    [userId, new Date().toISOString()],
+  );
   return {
+    gatherings: Number(gatherings?.n ?? 0),
     messages: await unreadMessageCount(userId),
     introductions: Number(intros?.n ?? 0),
     notifications: await unreadNotificationCount(userId),

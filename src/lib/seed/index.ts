@@ -1,5 +1,6 @@
 import type { Db } from "../db/types";
 import { CONSENTS, type ConsentKey, type MemoryCategory } from "../config";
+import { districtPoint } from "../geo";
 import { hashPassword } from "../services/auth";
 import { requestIntroduction, respondToIntroduction } from "../services/introductions";
 import { createIntention, createMemory } from "../services/memory";
@@ -176,7 +177,23 @@ export async function seedIfEmpty(db: Db): Promise<boolean> {
 export async function seedDemo(db: Db) {
   const demoHash = await hashPassword(DEMO_PASSWORD);
   const ids: Record<string, string> = {};
-  const shareAll: ConsentKey[] = ["matching_enabled", "share_interests", "share_experiences", "share_skills_goals", "share_intentions", "share_personality", "share_area", "companion_memory"];
+  const shareAll: ConsentKey[] = ["matching_enabled", "share_interests", "share_experiences", "share_skills_goals", "share_intentions", "share_personality", "share_area", "share_availability", "mutual_connections", "group_suggestions", "companion_memory"];
+  // Postcode district, travel radius (miles), open to online, usual free time.
+  const WHERE: Record<string, [string, number, boolean, string[]]> = {
+    alex: ["BS3", 10, false, ["weekend_mornings", "weekday_evenings"]],
+    priya: ["BS3", 10, false, ["weekend_mornings", "weekend_afternoons"]],
+    tom: ["BS8", 5, false, ["weekday_evenings", "weekend_afternoons"]],
+    mei: ["BA1", 25, true, ["weekend_afternoons", "weekday_evenings"]],
+    daniel: ["BS5", 10, true, ["weekend_mornings", "weekday_evenings"]],
+    aisha: ["BS6", 10, true, ["weekday_evenings", "weekend_afternoons"]],
+    george: ["BA1", 25, false, ["weekday_mornings", "weekday_afternoons"]],
+    sofia: ["BS6", 5, false, ["weekend_mornings", "weekend_afternoons"]],
+    kwame: ["BS2", 10, false, ["weekday_evenings", "weekend_evenings"]],
+    hannah: ["BS7", 5, false, ["weekday_mornings", "weekend_mornings"]],
+    ravi: ["BS7", 10, false, ["weekday_evenings", "weekend_evenings"]],
+    eleanor: ["BS3", 5, false, ["weekday_mornings", "weekend_mornings"]],
+    jamal: ["BS4", 25, false, ["weekend_mornings", "weekday_evenings"]],
+  };
 
   // Administrator (not a member of the network).
   const adminId = id();
@@ -198,6 +215,9 @@ export async function seedDemo(db: Db) {
       'INSERT INTO profiles (user_id, display_name, pronouns, age_range, bio, area, region, hue, interests, "values", personality, looking_for, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [uidv, m.name, m.pronouns, m.age, m.bio, m.area, "South West England", m.hue, JSON.stringify(m.interests), JSON.stringify(m.values), JSON.stringify(m.personality), JSON.stringify(m.lookingFor), joined],
     );
+    const [district, radius, online, free] = WHERE[m.key];
+    const point = districtPoint(district)!;
+    await db.run("UPDATE profiles SET district = ?, lat = ?, lng = ?, radius_miles = ?, online_ok = ?, availability = ? WHERE user_id = ?", [district, point.lat, point.lng, radius, online ? 1 : 0, JSON.stringify(free), uidv]);
     await db.run("INSERT INTO companions (user_id, name, tone, style, proactivity, created_at, updated_at) VALUES (?, ?, ?, ?, 'balanced', ?, ?)", [uidv, m.companion[0], m.companion[1], m.companion[2], joined, joined]);
     for (const c of CONSENTS) {
       await db.run("INSERT INTO consents (user_id, key, granted, updated_at) VALUES (?, ?, ?, ?)", [uidv, c.key, shareAll.includes(c.key) ? 1 : 0, joined]);

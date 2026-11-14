@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getDb, json, now } from "../db";
-import { COMPANION_STYLES, COMPANION_TONES, PERSONALITY, type Personality } from "../config";
+import { AVAILABILITY_SLOTS, COMPANION_STYLES, COMPANION_TONES, PERSONALITY, type Personality } from "../config";
+import { districtPoint, RADIUS_OPTIONS, toDistrict } from "../geo";
 import { TOPICS } from "../matching/topics";
 import { AppError, audit } from "./core";
 import { syncSignals } from "./signals";
@@ -18,6 +19,11 @@ export interface Profile {
   values: string[];
   personality: Personality;
   lookingFor: string[];
+  /** Postcode district only, e.g. "BS3". */
+  district: string | null;
+  radiusMiles: number;
+  onlineOk: boolean;
+  availability: string[];
 }
 
 type ProfileRow = {
@@ -33,6 +39,10 @@ type ProfileRow = {
   values: string;
   personality: string;
   looking_for: string;
+  district: string | null;
+  radius_miles: number;
+  online_ok: number;
+  availability: string;
 };
 
 export const toProfile = (r: ProfileRow): Profile => ({
@@ -48,6 +58,10 @@ export const toProfile = (r: ProfileRow): Profile => ({
   values: json<string[]>(r.values, []),
   personality: json<Personality>(r.personality, {}),
   lookingFor: json<string[]>(r.looking_for, []),
+  district: r.district ?? null,
+  radiusMiles: Number(r.radius_miles ?? 10),
+  onlineOk: Boolean(r.online_ok),
+  availability: json<string[]>(r.availability, []),
 });
 
 export async function getProfile(userId: string): Promise<Profile | null> {
@@ -92,6 +106,11 @@ export const profileSchema = z.object({
     })
     .default({}),
   lookingFor: z.array(z.enum(Object.keys(LOOKING_FOR) as [string, ...string[]])).default([]),
+  /** A postcode or district. Only the district is kept. */
+  postcode: z.string().trim().max(10).optional(),
+  radiusMiles: z.coerce.number().refine((n) => (RADIUS_OPTIONS as readonly number[]).includes(n), "Choose a distance.").default(10),
+  onlineOk: z.boolean().default(false),
+  availability: z.array(z.enum(Object.keys(AVAILABILITY_SLOTS) as [string, ...string[]])).default([]),
 });
 
 export type ProfileInput = z.input<typeof profileSchema>;
@@ -99,9 +118,12 @@ export type ProfileInput = z.input<typeof profileSchema>;
 export async function updateProfile(userId: string, input: ProfileInput) {
   const d = profileSchema.parse(input);
   const interests = d.interests.filter((i) => TOPICS[i]);
+  const district = d.postcode ? toDistrict(d.postcode) : null;
+  if (d.postcode && !district) throw new AppError("We don't recognise that postcode. Try just the first part, like “BS3”.");
+  const point = districtPoint(district);
   const db = await getDb();
   await db.run(
-    'UPDATE profiles SET display_name = ?, pronouns = ?, age_range = ?, bio = ?, area = ?, region = ?, interests = ?, "values" = ?, personality = ?, looking_for = ?, updated_at = ? WHERE user_id = ?',
+    'UPDATE profiles SET display_name = ?, pronouns = ?, age_range = ?, bio = ?, area = ?, region = ?, interests = ?, "values" = ?, personality = ?, looking_for = ?, district = ?, lat = ?, lng = ?, radius_miles = ?, online_ok = ?, availability = ?, updated_at = ? WHERE user_id = ?',
     [
       d.displayName,
       d.pronouns ?? null,
@@ -113,6 +135,12 @@ export async function updateProfile(userId: string, input: ProfileInput) {
       JSON.stringify(d.values),
       JSON.stringify(d.personality),
       JSON.stringify(d.lookingFor),
+      district,
+      point?.lat ?? null,
+      point?.lng ?? null,
+      d.radiusMiles,
+      d.onlineOk ? 1 : 0,
+      JSON.stringify(d.availability),
       now(),
       userId,
     ],

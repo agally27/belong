@@ -20,13 +20,14 @@ import {
   Share2,
   ShieldCheck,
   Sparkles,
+  Tent,
   UserRound,
   Users,
   X,
 } from "lucide-react";
 import { cx } from "./ui";
 
-export type NavCounts = { messages: number; introductions: number; notifications: number; suggestions: number };
+export type NavCounts = { messages: number; introductions: number; notifications: number; suggestions: number; gatherings: number };
 export type NavFlags = Record<string, boolean>;
 
 const GROUPS = [
@@ -52,6 +53,7 @@ const GROUPS = [
     items: [
       { href: "/connections", label: "My connections", icon: Users },
       { href: "/circles", label: "Circles", icon: CircleDot, flag: "circles" },
+      { href: "/gatherings", label: "Gatherings", icon: Tent, count: "gatherings", flag: "gatherings" },
       { href: "/events", label: "Events", icon: CalendarHeart, flag: "events" },
       { href: "/graph", label: "Connection Graph", icon: Share2, flag: "connection_graph" },
     ],
@@ -141,7 +143,7 @@ export function MobileNav({ counts, flags, footer }: { counts: NavCounts; flags:
       document.body.style.overflow = "";
     };
   }, [open]);
-  const other = counts.introductions + counts.notifications;
+  const other = counts.introductions + counts.notifications + counts.gatherings;
   return (
     <>
       <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-30 border-t border-sand/70 bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">

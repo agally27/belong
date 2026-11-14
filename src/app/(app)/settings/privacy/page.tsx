@@ -21,6 +21,7 @@ const KIND_LABEL: Record<string, string> = {
   offer: "Something I can share",
   seek: "Something I'd like to learn",
   collaboration: "Open to collaborating",
+  availability: "When I'm usually free",
 };
 const SOURCE_LABEL: Record<string, string> = { profile: "from your profile", memory: "from a memory you shared", intention: "from an intention you shared" };
 

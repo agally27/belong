@@ -89,6 +89,7 @@ export const DEFAULT_FLAGS: { key: string; description: string; enabled: boolean
   { key: "live_intelligence", description: "Live Connection Intelligence (temporary signals)", enabled: true },
   { key: "circles", description: "BELONG Circles", enabled: true },
   { key: "events", description: "Events and activities", enabled: true },
+  { key: "gatherings", description: "Companion-proposed gatherings", enabled: true },
   { key: "connection_graph", description: "Connection Graph", enabled: true },
   { key: "connection_assistant", description: "Connection assistant in conversations", enabled: true },
   { key: "subscriptions", description: "Membership upgrades", enabled: true },
@@ -103,6 +104,9 @@ export type ConsentKey =
   | "share_intentions"
   | "share_personality"
   | "share_area"
+  | "share_availability"
+  | "mutual_connections"
+  | "group_suggestions"
   | "companion_memory"
   | "product_analytics"
   | "marketing_emails";
@@ -154,7 +158,28 @@ export const CONSENTS: { key: ConsentKey; title: string; description: string; gr
   {
     key: "share_area",
     title: "Use my general area",
-    description: "Only your town or neighbourhood name is ever used. BELONG never tracks your exact location.",
+    description: "Your postcode district (like “BS3”) and travel distance, so suggestions are people you could actually meet. Never your address or live location.",
+    group: "Agent network",
+    default: true,
+  },
+  {
+    key: "share_availability",
+    title: "Share when I'm usually free",
+    description: "Broad slots only, such as “weekend mornings”, so plans can suit everyone. Never your calendar.",
+    group: "Agent network",
+    default: true,
+  },
+  {
+    key: "mutual_connections",
+    title: "Friends of friends",
+    description: "Let BELONG notice when someone suggested to you knows one of your connections, and name that connection if all three of you allow it.",
+    group: "Agent network",
+    default: true,
+  },
+  {
+    key: "group_suggestions",
+    title: "Suggest small gatherings",
+    description: "Let your companion propose a one-off get-together with a few nearby members who share an interest. You always choose whether to join.",
     group: "Agent network",
     default: true,
   },
@@ -210,6 +235,15 @@ export const PERSONALITY = {
     options: { planned: "made in advance", steady: "regular and steady", spontaneous: "spontaneous" },
     signal: { planned: "plan-ahead", steady: "steady-rhythm", spontaneous: "spontaneous" },
   },
+} as const;
+
+export const AVAILABILITY_SLOTS = {
+  weekday_mornings: "Weekday mornings",
+  weekday_afternoons: "Weekday afternoons",
+  weekday_evenings: "Weekday evenings",
+  weekend_mornings: "Weekend mornings",
+  weekend_afternoons: "Weekend afternoons",
+  weekend_evenings: "Weekend evenings",
 } as const;
 
 export type PersonalityKey = keyof typeof PERSONALITY;

@@ -1,3 +1,4 @@
+import { distanceBand, milesBetween, type Point } from "../geo";
 import { areComplementary, taxonomyMatcher, type SemanticMatcher } from "./semantic";
 import { topicLabel } from "./topics";
 
@@ -14,7 +15,8 @@ export type SignalKind =
   | "moment"
   | "offer"
   | "seek"
-  | "collaboration";
+  | "collaboration"
+  | "availability";
 
 export interface MatchSignal {
   kind: SignalKind;
@@ -35,9 +37,40 @@ export interface MatchWeights {
 export const DEFAULT_WEIGHTS: MatchWeights = { shared: 0.4, moments: 0.35, complementary: 0.25, threshold: 22 };
 
 export type Dimension = "shared" | "moments" | "complementary";
+/** "context" reasons explain the practical fit (distance, timing, style, people in common). They adjust the score but are not a dimension. */
+export type ReasonKind = Dimension | "context";
+
+/** Coarse, consented context about one member. Never more precise than a postcode district. */
+export interface MemberContext {
+  point?: Point | null;
+  radiusMiles?: number;
+  onlineOk?: boolean;
+}
+
+export interface MatchOptions {
+  a?: MemberContext;
+  b?: MemberContext;
+  /** Rarity weight for a topic: > 1 for unusual interests, < 1 for very common ones. */
+  rarity?: (topic: string) => number;
+  /** Number of connections the two members have in common (only counted with consent). */
+  mutuals?: number;
+}
+
+export interface MatchContextResult {
+  /** Approximate distance between district centres, if both shared an area. */
+  miles: number | null;
+  /** Outside each other's travel radius, matched only because both are open to online. */
+  remote: boolean;
+  /** -1 (clashing) … 1 (very similar) social style. */
+  style: number;
+  sharedSlots: string[];
+  mutuals: number;
+  /** Combined multiplier applied to the three-dimension score. */
+  multiplier: number;
+}
 
 export interface MatchReason {
-  dimension: Dimension;
+  dimension: ReasonKind;
   topics: string[];
   /** Phrasing from member A's point of view, e.g. "You both love hiking". */
   text: string;
@@ -51,9 +84,20 @@ export interface MatchResult {
   dimensions: Record<Dimension, number>;
   reasons: MatchReason[];
   topics: string[];
+  context: MatchContextResult;
 }
 
-const DURABLE: SignalKind[] = ["interest", "experience", "personality"];
+const DURABLE: SignalKind[] = ["interest", "experience"];
+export const SLOT_LABEL: Record<string, string> = {
+  weekday_mornings: "weekday mornings",
+  weekday_afternoons: "weekday afternoons",
+  weekday_evenings: "weekday evenings",
+  weekend_mornings: "weekend mornings",
+  weekend_afternoons: "weekend afternoons",
+  weekend_evenings: "weekend evenings",
+};
+const ENERGY = ["quiet-evening", "easy-going", "high-energy"];
+const NO_CONTEXT: MatchContextResult = { miles: null, remote: false, style: 0, sharedSlots: [], mutuals: 0, multiplier: 1 };
 const LIVE: SignalKind[] = ["intention", "moment"];
 
 /** Drops expired signals. Callers must already have applied consent rules. */
@@ -70,9 +114,27 @@ export function computeMatch(
   weights: MatchWeights = DEFAULT_WEIGHTS,
   matcher: SemanticMatcher = taxonomyMatcher,
   at = new Date(),
+  options: MatchOptions = {},
 ): MatchResult {
   const A = liveSignals(rawA, at);
   const B = liveSignals(rawB, at);
+  const rar = (topic: string) => Math.max(0.6, Math.min(1.6, options.rarity?.(topic) ?? 1));
+
+  // Hard filter first: people who could never practically meet are not suggested at all.
+  let miles: number | null = null;
+  let remote = false;
+  const pa = options.a?.point;
+  const pb = options.b?.point;
+  if (pa && pb) {
+    miles = milesBetween(pa, pb);
+    const reach = Math.min(options.a?.radiusMiles ?? 10, options.b?.radiusMiles ?? 10);
+    if (miles > reach) {
+      if (!(options.a?.onlineOk && options.b?.onlineOk)) {
+        return { score: 0, dimensions: { shared: 0, moments: 0, complementary: 0 }, reasons: [], topics: [], context: { ...NO_CONTEXT, miles } };
+      }
+      remote = true;
+    }
+  }
   const reasons: MatchReason[] = [];
   const seen = new Set<string>();
   const add = (r0: Omit<MatchReason, "textB"> & { textB?: string }) => {
@@ -101,6 +163,7 @@ export function computeMatch(
     });
     if (bestIdx < 0 || best < 0.2) continue;
     usedB.add(bestIdx);
+    best *= rar(a.topic);
     shared += best;
     const b = dB[bestIdx];
     if (a.topic === b.topic) {
@@ -129,7 +192,7 @@ export function computeMatch(
     for (const b of lB) {
       const sim = matcher.similarity(a.topic, b.topic);
       if (sim >= 0.5) {
-        const w = sim * Math.min(a.strength, b.strength);
+        const w = sim * Math.min(a.strength, b.strength) * rar(a.topic);
         moments += w;
         add({
           dimension: "moments",
@@ -149,7 +212,7 @@ export function computeMatch(
     for (const l of live) {
       for (const d of durable) {
         if (l.topic !== d.topic || d.kind === "personality") continue;
-        const w = 0.4 * Math.min(l.strength, d.strength);
+        const w = 0.4 * Math.min(l.strength, d.strength) * rar(l.topic);
         moments += w;
         const mine = `You're looking for ${topicLabel(l.topic)} company right now — it's one of their lasting interests`;
         const theirs = `They're looking for ${topicLabel(l.topic)} company right now — it's one of your lasting interests`;
@@ -242,10 +305,68 @@ export function computeMatch(
       weights.complementary * dimensions.complementary) /
     total;
   // Rescale so that a strong match in two dimensions reads as a high score.
-  const score = Math.round(Math.min(1, blended * 1.45) * 100);
+  const base = Math.min(1, blended * 1.45);
   reasons.sort((x, y) => y.weight - x.weight);
-  const topics = [...new Set(reasons.flatMap((r) => r.topics))];
-  return { score, dimensions, reasons: reasons.slice(0, 6), topics };
+  const main = reasons.slice(0, 5);
+  const topics = [...new Set(main.flatMap((r) => r.topics))];
+  if (!main.length) return { score: 0, dimensions, reasons: [], topics: [], context: { ...NO_CONTEXT, miles, remote } };
+
+  // Practical fit. These never create a match on their own — they nudge a real one up or down.
+  const extra: MatchReason[] = [];
+  const ctx = (text: string, textB = text) => extra.push({ dimension: "context", topics: [], text, textB, weight: 0 });
+  let multiplier = 1;
+
+  // Distance: nearer is easier. Wording stays vague on purpose.
+  if (miles !== null) {
+    if (remote) {
+      multiplier *= 0.8;
+      ctx("You live further apart, but you're both open to connecting online");
+    } else {
+      const reach = Math.min(options.a?.radiusMiles ?? 10, options.b?.radiusMiles ?? 10);
+      multiplier *= 1 + 0.15 * (1 - miles / Math.max(reach, 1));
+      ctx(`You're ${distanceBand(miles)}`);
+    }
+  }
+
+  // Social style: similar group size and pace help; energy can differ by a step, but opposite ends rarely click one-to-one.
+  const styleOf = (s: MatchSignal[]) => s.filter((x) => x.kind === "personality").map((x) => x.topic.replace(/^p:/, ""));
+  const sa = styleOf(A);
+  const sb = styleOf(B);
+  let style = 0;
+  if (sa.length && sb.length) {
+    const sharedStyles = sa.filter((x) => sb.includes(x) && !ENERGY.includes(x));
+    style += 0.4 * sharedStyles.length;
+    const ea = ENERGY.indexOf(sa.find((x) => ENERGY.includes(x)) ?? "");
+    const eb = ENERGY.indexOf(sb.find((x) => ENERGY.includes(x)) ?? "");
+    if (ea >= 0 && eb >= 0) style += ea === eb ? 0.2 : Math.abs(ea - eb) === 1 ? 0.1 : -0.4;
+    if (sa.includes("one-to-one") !== sb.includes("one-to-one") && (sa.includes("big-gathering") || sb.includes("big-gathering"))) style -= 0.3;
+    style = Math.max(-1, Math.min(1, style));
+    multiplier *= 1 + 0.12 * style;
+    if (sharedStyles.length) ctx(`You're both ${sharedStyles[0]} people`);
+  }
+
+  // Timing: overlapping free time makes meeting realistic.
+  const slotsOf = (s: MatchSignal[]) => s.filter((x) => x.kind === "availability").map((x) => x.topic.replace(/^a:/, ""));
+  const la = slotsOf(A);
+  const lb = slotsOf(B);
+  const sharedSlots = la.filter((x) => lb.includes(x));
+  if (la.length && lb.length) {
+    multiplier *= sharedSlots.length ? 1 + Math.min(0.12, 0.05 * sharedSlots.length) : 0.85;
+    if (sharedSlots.length) ctx(`You're both usually free on ${SLOT_LABEL[sharedSlots[0]] ?? sharedSlots[0]}`);
+  }
+
+  // People in common: a friend of a friend is an easier first hello.
+  const mutuals = Math.max(0, options.mutuals ?? 0);
+  if (mutuals) multiplier *= 1 + Math.min(0.15, 0.08 * mutuals);
+
+  const score = Math.round(Math.min(1, base * multiplier) * 100);
+  return {
+    score,
+    dimensions,
+    reasons: [...main, ...extra],
+    topics,
+    context: { miles, remote, style: round(style), sharedSlots, mutuals, multiplier: round(multiplier) },
+  };
 }
 
 /** Reason text for the viewing member (A or B of the pair). */

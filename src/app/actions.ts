@@ -13,6 +13,7 @@ import * as circles from "@/lib/services/circles";
 import * as companion from "@/lib/services/companion";
 import { AppError, setConsent, track } from "@/lib/services/core";
 import * as events from "@/lib/services/events";
+import * as gatherings from "@/lib/services/gatherings";
 import * as intros from "@/lib/services/introductions";
 import * as memory from "@/lib/services/memory";
 import * as messaging from "@/lib/services/messaging";
@@ -119,6 +120,10 @@ function profileInput(f: FormData) {
       pace: str(f, "pace") || undefined,
     },
     lookingFor: list(f, "lookingFor"),
+    postcode: str(f, "postcode"),
+    radiusMiles: Number(f.get("radiusMiles") ?? 10),
+    onlineOk: bool(f, "onlineOk"),
+    availability: list(f, "availability"),
   };
 }
 
@@ -437,6 +442,31 @@ export async function rsvpAction(_: ActionState, f: FormData): Promise<ActionSta
   return run(() => events.setRsvp(user.id, str(f, "id"), bool(f, "going")));
 }
 
+export async function respondGatheringAction(_: ActionState, f: FormData): Promise<ActionState> {
+  const user = await requireUser();
+  return run(async () => {
+    const res = await gatherings.respondToGathering(user.id, str(f, "id"), bool(f, "accept"));
+    return bool(f, "accept") && res.status === "proposed" ? "You're in. It goes ahead as soon as enough people say yes." : undefined;
+  });
+}
+
+export async function simulateGatheringAction(_: ActionState, f: FormData): Promise<ActionState> {
+  const user = await requireUser();
+  return run(() => gatherings.simulateDemoGathering(user.id, str(f, "id")));
+}
+
+export async function gatheringToCircleAction(_: ActionState, f: FormData): Promise<ActionState> {
+  const user = await requireUser();
+  let id = "";
+  try {
+    id = await gatherings.gatheringToCircle(user.id, str(f, "id"), str(f, "name"));
+  } catch (e) {
+    return fail(e);
+  }
+  revalidatePath("/", "layout");
+  redirect(`/circles/${id}`);
+}
+
 /* -------------------------- notifications & support ------------------------- */
 
 export async function markAllNotificationsReadAction(): Promise<ActionState> {
@@ -497,7 +527,7 @@ export async function adminRunNetworkAction(): Promise<ActionState> {
   const a = await requireAdmin();
   return run(async () => {
     const r = await admin.runNetworkAdmin(a.id);
-    return `Compared ${r.pairsCompared} pairs across ${r.membersConsidered} members: ${r.matchesCreated} new, ${r.matchesUpdated} updated, ${r.matchesRetired} retired, ${r.signalsExpired} signals expired.`;
+    return `Compared ${r.pairsCompared} pairs across ${r.membersConsidered} members: ${r.matchesCreated} new, ${r.matchesUpdated} updated, ${r.matchesRetired} retired, ${r.signalsExpired} signals expired, ${r.gatheringsProposed} gatherings proposed.`;
   });
 }
 

@@ -14,6 +14,7 @@ import { analytics, listReports, overview, resolveReport, setFlag, setUserStatus
 import { getGraph, listNotifications, unreadNotificationCount } from "@/lib/services/account";
 import { reportUser } from "@/lib/services/safety";
 import { listMySignals } from "@/lib/services/signals";
+import { listGatherings } from "@/lib/services/gatherings";
 import { seedDemo, DEMO_MEMBER_EMAIL, DEMO_PASSWORD } from "@/lib/seed";
 
 const reg = (email: string, password = "correct-horse-battery") =>
@@ -365,7 +366,9 @@ describe("demo seed", () => {
       const matches = await listMatches(user.id);
       expect(matches.length).toBeGreaterThanOrEqual(3);
       const dims = new Set(matches.flatMap((m) => m.reasons.map((r) => r.dimension)));
-      expect([...dims].sort()).toEqual(["complementary", "moments", "shared"]);
+      expect([...dims].sort()).toEqual(["complementary", "context", "moments", "shared"]);
+      // The seeded world also contains a companion-proposed gathering for Alex.
+      expect((await listGatherings(user.id)).length).toBeGreaterThanOrEqual(1);
       const incoming = (await listIntroductions(user.id)).find((i) => i.status === "pending" && !i.requestedByMe)!;
       expect(incoming.member.name).toBe("Tom");
       expect((await listConnections(user.id))[0].member.name).toBe("Eleanor");

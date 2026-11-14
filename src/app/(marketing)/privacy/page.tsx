@@ -30,7 +30,7 @@ export default function PrivacyPage() {
         <h2>What we never do</h2>
         <ul>
           <li>We never share your conversations or memories with other members or their companions.</li>
-          <li>We never track your precise location. We use only the area name you type in.</li>
+          <li>We never track your precise location. We keep only the area name and postcode district (such as “BS3”) you choose to give, and other members never see your district.</li>
           <li>We never sell your personal data.</li>
           <li>We never introduce you to anyone without your approval and theirs.</li>
         </ul>

@@ -2,8 +2,9 @@ import { getDb, json, now, pair, uid } from "../db";
 import { computeMatch, reasonTexts, type MatchReason } from "../matching/engine";
 import { topicLabel } from "../matching/topics";
 import { audit, flag, forbidden, getWeights, notify } from "./core";
+import { proposeGatherings, sweepGatherings } from "./gatherings";
 import { previewsById, type MemberPreview } from "./members";
-import { expireSignals, networkSignals, toMatchSignal } from "./signals";
+import { expireSignals, networkContexts, networkSignals, toMatchSignal } from "./signals";
 
 /**
  * The BELONG agent network. Each member's companion contributes only that
@@ -18,6 +19,7 @@ export interface NetworkRunResult {
   matchesUpdated: number;
   matchesRetired: number;
   signalsExpired: number;
+  gatheringsProposed: number;
 }
 
 type MatchRow = {
@@ -45,18 +47,42 @@ export async function runNetwork(opts: { forUserId?: string; actorId?: string | 
   const byUser = await networkSignals();
   const liveOn = await flag("live_intelligence");
   const ids = [...byUser.keys()].sort();
+  const contexts = await networkContexts();
+
+  // Rarity: sharing an unusual interest says more than sharing a very common one.
+  const holders = new Map<string, number>();
+  for (const signals of byUser.values()) for (const t of new Set(signals.map((s) => s.topic))) holders.set(t, (holders.get(t) ?? 0) + 1);
+  const population = Math.max(ids.length, 1);
+  const rarity = (topic: string) => {
+    const share = (holders.get(topic) ?? 1) / population; // 0..1 of members hold it
+    return population < 8 ? 1 : 1.35 - 0.7 * share; // ~1.3 when rare, ~0.65 when nearly everyone has it
+  };
 
   const blocks = new Set(
     (await db.all<{ blocker_id: string; blocked_id: string }>("SELECT blocker_id, blocked_id FROM blocks")).map((b) => pair(b.blocker_id, b.blocked_id).join("|")),
   );
-  const connected = new Set(
-    (await db.all<{ user_a: string; user_b: string }>("SELECT user_a, user_b FROM connections WHERE status = 'active'")).map((c) => `${c.user_a}|${c.user_b}`),
-  );
+  const connectionRows = await db.all<{ user_a: string; user_b: string }>("SELECT user_a, user_b FROM connections WHERE status = 'active'");
+  const connected = new Set(connectionRows.map((c) => `${c.user_a}|${c.user_b}`));
+  // Friends of friends, counted only where both people being matched allow it.
+  const friends = new Map<string, Set<string>>();
+  for (const c of connectionRows) {
+    for (const [x, y] of [[c.user_a, c.user_b], [c.user_b, c.user_a]]) {
+      if (!friends.has(x)) friends.set(x, new Set());
+      friends.get(x)!.add(y);
+    }
+  }
+  const mutualCount = (a: string, b: string) => {
+    if (!contexts.get(a)?.mutualsOk || !contexts.get(b)?.mutualsOk) return 0;
+    const fb = friends.get(b);
+    let n = 0;
+    for (const f of friends.get(a) ?? []) if (fb?.has(f)) n++;
+    return n;
+  };
   const existing = new Map(
     (await db.all<MatchRow>("SELECT * FROM matches")).map((m) => [`${m.user_a}|${m.user_b}`, m]),
   );
 
-  const result: NetworkRunResult = { membersConsidered: ids.length, pairsCompared: 0, matchesCreated: 0, matchesUpdated: 0, matchesRetired: 0, signalsExpired };
+  const result: NetworkRunResult = { membersConsidered: ids.length, pairsCompared: 0, matchesCreated: 0, matchesUpdated: 0, matchesRetired: 0, signalsExpired, gatheringsProposed: 0 };
   const seen = new Set<string>();
   const ts = now();
   const fresh = new Map<string, string[]>(); // member -> topics of their new suggestions
@@ -75,7 +101,7 @@ export async function runNetwork(opts: { forUserId?: string; actorId?: string | 
           .get(id)!
           .map(toMatchSignal)
           .filter((s) => liveOn || !s.temporary);
-      const m = computeMatch(prep(a), prep(b), weights);
+      const m = computeMatch(prep(a), prep(b), weights, undefined, undefined, { a: contexts.get(a), b: contexts.get(b), rarity, mutuals: mutualCount(a, b) });
       const prev = existing.get(key);
       if (m.score < weights.threshold || !m.reasons.length) {
         if (prev && prev.status === "suggested") {
@@ -125,6 +151,10 @@ export async function runNetwork(opts: { forUserId?: string; actorId?: string | 
     }
   }
 
+  // Beyond pairs: look for small groups who could get together.
+  await sweepGatherings();
+  result.gatheringsProposed = await proposeGatherings({ quiet: opts.quiet });
+
   await audit(opts.actorId ?? null, "network.run", "network", opts.forUserId ?? "all", { ...result });
   return result;
 }
@@ -135,6 +165,9 @@ export interface MatchView {
   score: number;
   dimensions: { shared: number; moments: number; complementary: number };
   reasons: { dimension: MatchReason["dimension"]; text: string; topics: string[] }[];
+  /** First names of connections you have in common — only those who allow it. */
+  mutuals: string[];
+  mutualCount: number;
   isNew: boolean;
   createdAt: string;
   introduction: { id: string; status: string; mine: string; theirs: string } | null;
@@ -149,11 +182,22 @@ async function toView(userId: string, rows: MatchRow[]): Promise<MatchView[]> {
     [userId, userId],
   );
   const introByMatch = new Map(intros.map((i) => [i.match_id, i]));
+  // Friends of friends. Counted only if viewer and match both allow it; a name is shown only if that friend allows it too.
+  const allow = new Set(
+    (await db.all<{ user_id: string }>("SELECT user_id FROM consents WHERE key = 'mutual_connections' AND granted = 1")).map((c) => c.user_id),
+  );
+  const friendsOf = async (id: string) =>
+    (await db.all<{ user_a: string; user_b: string }>("SELECT user_a, user_b FROM connections WHERE status = 'active' AND (user_a = ? OR user_b = ?)", [id, id])).map((c) =>
+      c.user_a === id ? c.user_b : c.user_a,
+    );
+  const mine = allow.has(userId) ? new Set(await friendsOf(userId)) : new Set<string>();
   const out: MatchView[] = [];
   for (const r of rows) {
     const isA = r.user_a === userId;
     const member = previews.get(isA ? r.user_b : r.user_a);
     if (!member) continue;
+    const shared = mine.size && allow.has(member.id) ? (await friendsOf(member.id)).filter((f) => mine.has(f)) : [];
+    const named = [...(await previewsById(shared.filter((f) => allow.has(f)))).values()].map((p) => p.name);
     const reasons = json<MatchReason[]>(r.reasons, []);
     const texts = reasonTexts(reasons, isA);
     const intro = introByMatch.get(r.id);
@@ -162,7 +206,14 @@ async function toView(userId: string, rows: MatchRow[]): Promise<MatchView[]> {
       member,
       score: Number(r.score),
       dimensions: json(r.dimensions, { shared: 0, moments: 0, complementary: 0 }),
-      reasons: reasons.map((x, i) => ({ dimension: x.dimension, text: texts[i], topics: x.topics })),
+      reasons: [
+        ...reasons.map((x, i) => ({ dimension: x.dimension, text: texts[i], topics: x.topics })),
+        ...(shared.length
+          ? [{ dimension: "context" as const, topics: [], text: named.length ? `You both know ${named.slice(0, 2).join(" and ")}` : `You have ${shared.length === 1 ? "a connection" : `${shared.length} connections`} in common` }]
+          : []),
+      ],
+      mutuals: named,
+      mutualCount: shared.length,
       isNew: (isA ? r.a_state : r.b_state) === "new",
       createdAt: r.created_at,
       introduction: intro

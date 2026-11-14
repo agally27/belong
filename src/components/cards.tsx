@@ -16,7 +16,7 @@ import { REPORT_REASONS } from "@/lib/services/safety";
 import { ActionButton, ActionForm, SubmitButton } from "./forms";
 import { Avatar, Badge, Card, DemoBadge, LinkButton, Meter, Notice, cx, timeAgo } from "./ui";
 
-const DOT = { shared: "bg-lavender-400", moments: "bg-sky-300", complementary: "bg-sage-300" } as const;
+const DOT = { shared: "bg-lavender-400", moments: "bg-sky-300", complementary: "bg-sage-300", context: "bg-peach-300" } as const;
 export const DIMENSION_LABEL = { shared: "Shared interests", moments: "Shared moments", complementary: "Complementary" } as const;
 
 export const fitLabel = (score: number) => (score >= 70 ? "Strong fit" : score >= 45 ? "Good fit" : "Worth a hello");

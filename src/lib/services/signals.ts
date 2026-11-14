@@ -1,6 +1,6 @@
 import { getDb, json, now, uid } from "../db";
 import { MEMORY_CATEGORIES, PERSONALITY, type Personality, type PersonalityKey } from "../config";
-import type { MatchSignal, SignalKind } from "../matching/engine";
+import { SLOT_LABEL, type MatchSignal, type MemberContext, type SignalKind } from "../matching/engine";
 import { topicLabel } from "../matching/topics";
 import { audit, forbidden, getConsents } from "./core";
 
@@ -65,7 +65,8 @@ export const toMatchSignal = (s: Signal): MatchSignal => ({
 });
 
 export const personalityLabel = (topic: string) => topic.replace(/^p:/, "");
-export const signalTopicLabel = (topic: string) => (topic.startsWith("p:") ? personalityLabel(topic) : topicLabel(topic));
+export const signalTopicLabel = (topic: string) =>
+  topic.startsWith("a:") ? (SLOT_LABEL[topic.slice(2)] ?? topic.slice(2)) : topic.startsWith("p:") ? personalityLabel(topic) : topicLabel(topic);
 
 type Desired = Omit<Signal, "id" | "userId" | "status" | "createdAt">;
 
@@ -79,10 +80,16 @@ async function desiredSignals(userId: string): Promise<Desired[]> {
   );
   if (!user || user.status !== "active" || !user.onboarded_at || !consent.matching_enabled) return [];
   const out: Desired[] = [];
-  const profile = await db.get<{ interests: string; personality: string }>(
-    "SELECT interests, personality FROM profiles WHERE user_id = ?",
+  const profile = await db.get<{ interests: string; personality: string; availability: string }>(
+    "SELECT interests, personality, availability FROM profiles WHERE user_id = ?",
     [userId],
   );
+  if (profile && consent.share_availability) {
+    for (const slot of json<string[]>(profile.availability, [])) {
+      if (!SLOT_LABEL[slot]) continue;
+      out.push({ kind: "availability", topic: `a:${slot}`, label: SLOT_LABEL[slot], strength: 0.5, sourceType: "profile", sourceId: null, temporary: false, expiresAt: null });
+    }
+  }
   if (profile && consent.share_interests) {
     for (const topic of json<string[]>(profile.interests, [])) {
       out.push({ kind: "interest", topic, label: topicLabel(topic), strength: 0.8, sourceType: "profile", sourceId: null, temporary: false, expiresAt: null });
@@ -231,4 +238,43 @@ export async function networkSignals(): Promise<Map<string, Signal[]>> {
     map.get(s.userId)!.push(s);
   }
   return map;
+}
+
+export interface NetworkMember extends MemberContext {
+  /** Town-level label for display in proposals, e.g. "Bristol". */
+  town: string | null;
+  mutualsOk: boolean;
+  groupsOk: boolean;
+}
+
+/**
+ * Coarse context the network may use alongside signals — and only with consent:
+ * a postcode-district centre point and travel radius (share_area), plus whether
+ * the member allows friends-of-friends and gathering suggestions.
+ */
+export async function networkContexts(): Promise<Map<string, NetworkMember>> {
+  const db = await getDb();
+  const rows = await db.all<{ user_id: string; area: string | null; lat: number | null; lng: number | null; radius_miles: number; online_ok: number }>(
+    `SELECT p.user_id, p.area, p.lat, p.lng, p.radius_miles, p.online_ok FROM profiles p
+     JOIN users u ON u.id = p.user_id
+     JOIN consents c ON c.user_id = p.user_id AND c.key = 'matching_enabled' AND c.granted = 1
+     WHERE u.status = 'active' AND u.onboarded_at IS NOT NULL`,
+  );
+  const consents = await db.all<{ user_id: string; key: string }>(
+    "SELECT user_id, key FROM consents WHERE granted = 1 AND key IN ('share_area', 'mutual_connections', 'group_suggestions')",
+  );
+  const has = new Set(consents.map((c) => `${c.user_id}|${c.key}`));
+  const out = new Map<string, NetworkMember>();
+  for (const r of rows) {
+    const area = has.has(`${r.user_id}|share_area`);
+    out.set(r.user_id, {
+      point: area && r.lat !== null && r.lng !== null ? { lat: Number(r.lat), lng: Number(r.lng) } : null,
+      radiusMiles: Number(r.radius_miles ?? 10),
+      onlineOk: Boolean(r.online_ok),
+      town: area && r.area ? (r.area.split(",").pop()?.trim() ?? null) : null,
+      mutualsOk: has.has(`${r.user_id}|mutual_connections`),
+      groupsOk: has.has(`${r.user_id}|group_suggestions`),
+    });
+  }
+  return out;
 }

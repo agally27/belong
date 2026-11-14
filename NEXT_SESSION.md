@@ -33,7 +33,15 @@ None. `npm run check` is clean. The `ExperimentalWarning: SQLite` line in output
 
 ## 7. Exact next task
 
+Added 2026-11-14: local matching (postcode district + radius), engine multipliers (rarity, style, timing,
+friends-of-friends) and companion-proposed gatherings — see the last entry in `DEVELOPMENT_LOG.md` and D-025–D-031.
+Ideas discussed with the owner but NOT built: learning from accept/dismiss behaviour, post-meeting feedback,
+reciprocity scoring, "bridge" introductions between friend groups, admin controls for the multipliers and gatherings.
+
 If the owner has given no other instruction, work down this list, one commit each, without waiting for credentials:
+
+0. **Admin for the new features**: multiplier weights in Admin → Matching, a gatherings table, and a Circle-allowance
+   check in `gatheringToCircle`.
 
 1. **Host tools**: let a Circle host remove a member, and an event host edit or cancel an event
    (`services/circles.ts`, `services/events.ts`, their pages, tests in `tests/workflow.test.ts`).

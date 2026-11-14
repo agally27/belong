@@ -14,7 +14,7 @@ import { previewsById, type MemberPreview } from "./members";
  */
 export interface ConversationSummary {
   id: string;
-  kind: "direct" | "circle";
+  kind: "direct" | "circle" | "gathering";
   title: string;
   member: MemberPreview | null;
   circleId: string | null;
@@ -35,7 +35,8 @@ export interface Message {
 
 type Access = {
   id: string;
-  kind: "direct" | "circle";
+  kind: "direct" | "circle" | "gathering";
+  gatheringId?: string;
   connectionId: string | null;
   circleId: string | null;
   otherId: string | null;
@@ -46,11 +47,20 @@ type Access = {
 /** Central permission check. Throws unless the member may use this conversation. */
 export async function assertConversationAccess(userId: string, conversationId: string): Promise<Access> {
   const db = await getDb();
-  const c = await db.get<{ id: string; kind: string; connection_id: string | null; circle_id: string | null }>(
-    "SELECT id, kind, connection_id, circle_id FROM conversations WHERE id = ?",
+  const c = await db.get<{ id: string; kind: string; connection_id: string | null; circle_id: string | null; gathering_id: string | null }>(
+    "SELECT id, kind, connection_id, circle_id, gathering_id FROM conversations WHERE id = ?",
     [conversationId],
   );
   if (!c) throw forbidden("That conversation isn't available.");
+  if (c.kind === "gathering") {
+    // Only people who said yes to a confirmed gathering.
+    const ok = await db.get(
+      "SELECT 1 AS x FROM gathering_invites i JOIN gatherings g ON g.id = i.gathering_id WHERE i.gathering_id = ? AND i.user_id = ? AND i.status = 'accepted' AND g.status IN ('confirmed', 'completed')",
+      [c.gathering_id, userId],
+    );
+    if (!ok) throw forbidden("That conversation isn't available.");
+    return { id: c.id, kind: "gathering", gatheringId: c.gathering_id!, connectionId: null, circleId: null, otherId: null, sharedTopics: [], introductionId: null };
+  }
   if (c.kind === "direct") {
     const conn = await db.get<{ user_a: string; user_b: string; status: string; shared_topics: string; introduction_id: string | null }>(
       "SELECT user_a, user_b, status, shared_topics, introduction_id FROM connections WHERE id = ?",
@@ -101,6 +111,11 @@ export async function listConversations(userId: string): Promise<ConversationSum
   for (const c of circles) {
     out.push({ id: c.id, kind: "circle", title: c.name, member: null, circleId: c.circle_id, ...(await stats(c.id)) });
   }
+  const gatherings = await db.all<{ id: string; title: string }>(
+    "SELECT cv.id, g.title FROM conversations cv JOIN gatherings g ON g.id = cv.gathering_id JOIN gathering_invites i ON i.gathering_id = g.id WHERE i.user_id = ? AND i.status = 'accepted' AND g.status IN ('confirmed', 'completed')",
+    [userId],
+  );
+  for (const g of gatherings) out.push({ id: g.id, kind: "gathering", title: g.title, member: null, circleId: null, ...(await stats(g.id)) });
   return out.sort((a, b) => (b.lastAt ?? "").localeCompare(a.lastAt ?? ""));
 }
 

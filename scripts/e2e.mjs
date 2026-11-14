@@ -58,7 +58,7 @@ async function visit(page, path, label, { shot = true } = {}) {
 const SHOT_OK = (shot) => Boolean(SHOTS && shot);
 
 const MARKETING = ["/", "/pricing", "/about", "/safety", "/privacy", "/terms", "/support", "/login", "/register"];
-const MEMBER = ["/dashboard", "/companion", "/companion/settings", "/memories", "/discover", "/live", "/introductions", "/messages", "/connections", "/circles", "/events", "/graph", "/profile", "/settings", "/settings/privacy", "/membership", "/notifications", "/help"];
+const MEMBER = ["/dashboard", "/companion", "/companion/settings", "/memories", "/discover", "/live", "/introductions", "/messages", "/connections", "/circles", "/gatherings", "/events", "/graph", "/profile", "/settings", "/settings/privacy", "/membership", "/notifications", "/help"];
 const ADMIN = ["/admin", "/admin/users", "/admin/signals", "/admin/matching", "/admin/introductions", "/admin/circles", "/admin/moderation", "/admin/subscriptions", "/admin/analytics", "/admin/flags", "/admin/audit"];
 
 const browser = await chromium.launch();
@@ -110,6 +110,7 @@ try {
 
   // 1. About you
   await page.fill('input[name="area"]', "Southville, Bristol");
+  await page.fill('input[name="postcode"]', "bs3 1ab");
   await page.click("text=Continue");
   // 2. Interests
   await page.click("text=Continue"); // should be blocked: needs two interests
@@ -118,6 +119,7 @@ try {
   await page.click("text=Continue");
   // 3. Social style
   await page.click("label.chip-toggle:has-text('in small groups')");
+  await page.click("label.chip-toggle:has-text('Weekend mornings')");
   await page.click("label.chip-toggle:has-text('New friends')");
   await page.click("text=Continue");
   // 4. Companion
@@ -180,6 +182,20 @@ try {
   await page.waitForSelector("text=simulated reply from a fictional demo member");
   ok(true, "messaging works after mutual approval; simulated reply is labelled");
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/journey-conversation.png`, fullPage: true });
+
+  // Companion-proposed gathering: opt in, fictional members answer, names appear only once confirmed.
+  const gText = await visit(page, "/gatherings", "journey");
+  ok(/Suggested for you/i.test(gText), "a nearby gathering should be suggested to the new member");
+  ok((await page.locator("a:has-text('Group chat')").count()) === 0 && !/WHO'S COMING/.test(gText), "invitees must stay hidden before confirmation");
+  await page.locator("button:has-text('Count me in')").first().click();
+  await page.waitForSelector("text=waiting for others");
+  await page.locator("button:has-text('Simulate their replies')").first().click();
+  await page.waitForSelector("a:has-text('Group chat')");
+  ok(/WHO'S COMING/.test(await page.locator("body").innerText()), "people coming are shown once confirmed");
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/journey-gathering.png`, fullPage: true });
+  const prof = await visit(page, "/profile", "journey", { shot: false });
+  ok((await page.inputValue('input[name="postcode"]')) === "BS3", "only the postcode district is kept");
+  ok(!/1AB/i.test(prof), "the full postcode must not be stored or shown");
 
   // Circles, events, membership
   await visit(page, "/circles", "journey", { shot: false });

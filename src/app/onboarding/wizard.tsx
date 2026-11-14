@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { completeOnboardingAction } from "@/app/actions";
 import { FormMessage } from "@/components/forms";
 import { Button, Card, CompanionOrb, Field, cx } from "@/components/ui";
-import { COMPANION_STYLES, COMPANION_TONES, PERSONALITY } from "@/lib/config";
+import { AVAILABILITY_SLOTS, COMPANION_STYLES, COMPANION_TONES, PERSONALITY } from "@/lib/config";
 
 const AGE_RANGES = ["18–24", "25–34", "35–44", "45–54", "55–64", "65+"];
 const LOOKING_FOR: [string, string][] = [
@@ -84,6 +84,20 @@ export function OnboardingWizard({ initialName, companionName, topics, consents 
         <Field label="Your general area" hint="A town or neighbourhood is plenty — for example “Southville, Bristol”. BELONG never uses your exact location.">
           <input className="field" name="area" maxLength={60} placeholder="Town or neighbourhood" />
         </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Postcode district (optional)" hint="Just the first half, like “BS3”. Only the district is kept, and nobody sees it.">
+            <input className="field uppercase" name="postcode" maxLength={10} placeholder="e.g. BS3" autoComplete="off" />
+          </Field>
+          <Field label="How far would you travel to meet?">
+            <select className="field" name="radiusMiles" defaultValue="10">
+              {[2, 5, 10, 25, 50].map((r) => (
+                <option key={r} value={r}>
+                  Up to {r} miles
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
         <Field label="A line or two about you (optional)">
           <textarea className="field" name="bio" rows={3} maxLength={400} placeholder="What would a friend say about you?" />
         </Field>
@@ -134,6 +148,17 @@ export function OnboardingWizard({ initialName, companionName, topics, consents 
             </div>
           </fieldset>
         ))}
+        <fieldset>
+          <legend className="mb-2 text-sm font-medium text-ink-700">I&apos;m usually free…</legend>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(AVAILABILITY_SLOTS).map(([value, label]) => (
+              <label key={value} className="chip-toggle">
+                <input type="checkbox" name="availability" value={value} className="sr-only" />
+                {label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
         <fieldset>
           <legend className="mb-2 text-sm font-medium text-ink-700">I&apos;m hoping to find…</legend>
           <div className="flex flex-wrap gap-2">

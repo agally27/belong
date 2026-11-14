@@ -46,3 +46,23 @@
 - Design system, public site, auth, onboarding and core member pages
 - Complete member app, admin console, API routes and browser journey test
 - Component and PostgreSQL tests, CI, documentation and handover (this commit)
+
+## 2026-11-14 · Session 1 (continued) — local matching, smarter engine, gatherings
+
+**Built**
+- `src/lib/geo`: bundled UK postcode-district lookup (2,848 districts, from github.com/academe/UK-Postcodes, derived from
+  ONS/OS open data; BS3 cross-checked against postcodes.io), distance and vague distance bands.
+- Migration `0002`: district, centre point, travel radius, open-to-online and availability on profiles; `gatherings`,
+  `gathering_invites`; gathering conversations.
+- Engine: distance filter and proximity boost, rarity weighting, social-style fit, availability overlap, friends-of-friends.
+  Personality is no longer counted as a shared interest.
+- New consents: `share_availability`, `mutual_connections`, `group_suggestions`. New flag: `gatherings`.
+- `services/gatherings.ts` and `/gatherings`: companion-proposed get-togethers with opt-in, minimum size, group chat,
+  reminders, lapse, drop-out handling and conversion to a Circle. Demo control for fictional invitees.
+- Profile and onboarding: postcode district, travel radius, online option, usual free time.
+
+**Tests** — `tests/local.test.ts` (18 new). Total 81 passed, 1 skipped. Browser run: 411 checks, 0 problems.
+PostgreSQL run of the seeded journey re-verified with the new migration.
+
+**Not done** — real calendar sync (needs provider credentials); venue suggestions (needs a places provider);
+recurring gatherings other than via a Circle; licence confirmation for the bundled district data (owner to check).

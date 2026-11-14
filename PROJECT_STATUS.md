@@ -1,12 +1,12 @@
 # Project status
 
-_Last updated: 2026-11-13 · end of build session 1_
+_Last updated: 2026-11-14 · local matching, smarter engine and gatherings added_
 
 ## Summary
 
 All 27 modules in the specification are built and working locally with no external credentials.
-Verified by: 63 automated tests, a real-browser run of the whole member journey plus every page at desktop and
-phone widths (390 checks), a clean lint/typecheck/production build, and the seeded journey on PostgreSQL 16.
+Verified by: 81 automated tests, a real-browser run of the whole member journey plus every page at desktop and
+phone widths (411 checks), a clean lint/typecheck/production build, and the seeded journey on PostgreSQL 16.
 
 **Not done, by design:** production services (database hosting, Claude key, Stripe, email, push, maps, storage,
 domain, deployment). **Nothing has been deployed.**
@@ -54,6 +54,19 @@ domain, deployment). **Nothing has been deployed.**
 - The simulated companion is keyword-based: it only recognises topics in the taxonomy (~50 topics) and can
   misread negations ("I don't like hiking" would still propose a hiking memory — the member can decline it).
 - Companion replies are not streamed.
+
+**Local matching and gatherings (added 2026-11-14)**
+- Distance uses postcode-district centres, so it is approximate by design (typically within a mile or two).
+  UK only. Members without a district are matched regardless of distance.
+- The bundled district table came from an open GitHub dataset derived from ONS/Ordnance Survey open data; its
+  licence terms should be confirmed before launch, or the table regenerated from the ONS Postcode Directory.
+- Availability is six broad slots, not a calendar. Real calendar sync needs provider credentials.
+- Gatherings suggest an activity and a date but no venue; the group agrees a meeting point in chat.
+- Gathering dates are computed in UTC, so times can be an hour out during British Summer Time.
+- Converting a gathering to a Circle does not check members' Circle allowance.
+- The multiplier sizes (distance ±, timing ±, mutuals +) are reasoned starting points, not tuned on real behaviour,
+  and are not yet editable in the admin console.
+- Gatherings do not yet appear in the admin console beyond the audit log.
 
 **Matching and network**
 - Interests outside the taxonomy are not matched until the taxonomy is extended or embeddings are connected.

@@ -29,13 +29,18 @@ agent network that finds opportunities for real human connection.
 ## Non-negotiable product invariants (covered by tests — keep them passing)
 
 1. **Memory isolation** — a member can only ever read or change their own memories and companion conversation.
-2. **Signals only** — the agent network / matching engine reads `signals` and nothing else. Signals are
-   generalised taxonomy topics, derived only from sources the member approved, and never contain their own words.
+2. **Signals only** — the agent network / matching engine reads `signals` plus the consented coarse context from
+   `networkContexts()` (postcode-district centre, travel radius, friends-of-friends and gathering opt-ins) and
+   nothing else. Signals are generalised taxonomy topics, derived only from sources the member approved, and never
+   contain their own words.
 3. **Consent is opt-in** — no consent row means not granted. Withdrawing consent removes signals immediately.
 4. **Mutual approval** — a connection (and therefore messaging) is created only in
    `respondToIntroduction` when BOTH decisions are `approved`.
 5. **No admin access to private content** — `services/admin.ts` must never return memories, companion chats or messages.
-6. **Temporary signals expire**; exact locations are never stored (named areas only).
+6. **Temporary signals expire**; exact locations are never stored — only a postcode district (e.g. "BS3"), never a
+   full postcode or device location, and another member's district is never shown.
+9. **Groups are opt-in** — nobody is placed in a gathering; invitees stay hidden until it is confirmed and the
+   viewer has accepted; a mutual connection is named only if all three people allow it.
 7. **Honest labelling** — fictional demo members and simulated AI output are always labelled in the UI.
 8. The matching engine (`src/lib/matching`) stays pure and independent of any AI API.
 
@@ -60,7 +65,8 @@ Demo sign-in (demo mode only): `alex@belong.example` / `belong-demo` · admin `a
 
 ## Map
 
-- `src/lib/matching` — taxonomy, semantic matcher, pure matching engine
+- `src/lib/matching` — taxonomy, semantic matcher, pure matching engine (three dimensions + practical-fit multipliers)
+- `src/lib/geo` — postcode-district lookup and distance; `src/lib/services/gatherings.ts` — companion-proposed groups
 - `src/lib/services` — all business logic and permission checks (the repository/service layer)
 - `src/lib/db` — driver abstraction (SQLite locally, PostgreSQL via `DATABASE_URL`), migrations in `db/migrations`
 - `src/lib/ai` — AI provider interface, simulated companion, Claude adapter

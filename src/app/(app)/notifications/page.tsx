@@ -15,6 +15,7 @@ const ICON: Record<string, typeof Bell> = {
   connection: Users,
   message: MessageCircle,
   circle: CircleDot,
+  gathering: Users,
   event: CalendarHeart,
   membership: CreditCard,
   safety: ShieldCheck,

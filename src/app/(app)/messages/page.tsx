@@ -28,7 +28,7 @@ export default async function MessagesPage() {
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-2">
                     <span className={`font-display text-lg ${c.unread ? "text-charcoal" : "text-ink-700"}`}>{c.title}</span>
-                    {c.kind === "circle" && <span className="text-xs text-sage-600">Circle</span>}
+                    {c.kind !== "direct" && <span className="text-xs text-sage-600">{c.kind === "circle" ? "Circle" : "Get-together"}</span>}
                     {c.member?.isDemo && <DemoBadge />}
                   </span>
                   <span className={`block truncate text-sm ${c.unread ? "font-medium text-charcoal" : "text-ink-500"}`}>{c.lastMessage ?? "Say hello — you both said yes."}</span>

@@ -113,6 +113,28 @@ Score = weighted blend (admin-configurable weights and threshold) scaled to 0–
 phrased for both members. Semantic similarity goes through a `SemanticMatcher` interface: the local taxonomy
 matcher today, `embeddingMatcher()` when an embeddings provider is configured.
 
+**Practical fit.** After the three dimensions, a multiplier adjusts a real match (it can never create one):
+
+| Factor | Effect | Source |
+| --- | --- | --- |
+| Distance | Outside either member's travel radius → not suggested at all, unless both are open to online (then −20%). Within reach, nearer scores up to +15%. | Postcode district centre + radius, with `share_area` consent |
+| Rarity | A shared unusual interest counts for more than a very common one. | How many members hold each topic |
+| Social style | Same group size / pace helps; energy one step apart is fine; opposite ends reduce the score. | Personality signals |
+| Timing | Overlapping free slots +5–12%; none in common −15%. | Availability signals |
+| Friends of friends | +8% per mutual connection (max +15%). Named only if all three allow it. | Connections, with `mutual_connections` consent |
+
+Members set a postcode district, a travel radius (2–50 miles) and "open to online" in their profile. Distance is
+only ever described in vague bands ("a few miles away").
+
+### 4.2a Gatherings
+
+`services/gatherings.ts` looks beyond pairs for 3–6 members who share a topic, are within each other's travel
+radius, have a free slot in common, have not opted out, do not prefer one-to-one, and have no blocks between them.
+It favours a familiar face and a mix of quieter and livelier people, then proposes a one-off get-together at the
+next date for that slot. Each person opts in; invitees are hidden until at least three accept, at which point a
+group chat opens. Unanswered proposals lapse; drop-outs below the minimum pause it; day-before reminders are sent;
+a successful gathering can become a Circle. Route: `/gatherings`.
+
 The network run (`runNetwork`) skips blocked and already-connected pairs, retires suggestions that fall below
 threshold or whose members withdrew, never re-suggests declined pairs, and sends at most one notification per
 member per run.

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { updateProfileAction } from "@/app/actions";
 import { ActionForm, SubmitButton } from "@/components/forms";
 import { Avatar, Card, Field, PageHeader } from "@/components/ui";
-import { PERSONALITY } from "@/lib/config";
+import { AVAILABILITY_SLOTS, PERSONALITY } from "@/lib/config";
+import { RADIUS_OPTIONS } from "@/lib/geo";
 import { TOPIC_LIST } from "@/lib/matching/topics";
 import { AGE_RANGES, getProfile, LOOKING_FOR } from "@/lib/services/profile";
 import { requireMember } from "@/lib/session";
@@ -48,6 +49,43 @@ export default async function ProfilePage() {
           <Field label="Values" hint="A few words, separated by commas. These are shown on your profile but never used as signals.">
             <input className="field" name="values" defaultValue={p.values.join(", ")} maxLength={200} />
           </Field>
+        </Card>
+
+        <Card className="space-y-5">
+          <div>
+            <h2 className="text-xl text-charcoal">Where and when</h2>
+            <p className="mt-1 text-sm text-ink-500">So suggestions are people you could actually meet. BELONG keeps only your postcode district (like “BS3”) — never your full postcode, address or live location — and nobody sees it.</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Postcode district" hint="The first half of your postcode is enough.">
+              <input className="field uppercase" name="postcode" defaultValue={p.district ?? ""} maxLength={10} placeholder="e.g. BS3" autoComplete="off" />
+            </Field>
+            <Field label="How far would you travel to meet?">
+              <select className="field" name="radiusMiles" defaultValue={p.radiusMiles}>
+                {RADIUS_OPTIONS.map((r) => (
+                  <option key={r} value={r}>
+                    Up to {r} miles
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          <label className="flex items-center gap-3 text-sm text-ink-700">
+            <input type="checkbox" name="onlineOk" defaultChecked={p.onlineOk} className="h-4 w-4 accent-lavender-600" />
+            I&apos;m also open to connecting online with people further away
+          </label>
+          <fieldset>
+            <legend className="mb-2 text-sm font-medium text-ink-700">I&apos;m usually free…</legend>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(AVAILABILITY_SLOTS).map(([value, label]) => (
+                <label key={value} className="chip-toggle">
+                  <input type="checkbox" name="availability" value={value} defaultChecked={p.availability.includes(value)} className="sr-only" />
+                  {label}
+                </label>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-ink-500">Broad slots only. Your companion uses them to suggest people and get-togethers at times that suit everyone.</p>
+          </fieldset>
         </Card>
 
         <Card className="space-y-4">

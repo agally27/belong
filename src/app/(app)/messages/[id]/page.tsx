@@ -29,7 +29,8 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
   const other = access.otherId ? (await previewsById([access.otherId])).get(access.otherId) : null;
   const circle = access.circleId ? await (await getDb()).get<{ id: string; name: string }>("SELECT id, name FROM circles WHERE id = ?", [access.circleId]) : null;
   const assistant = await connectionAssistant(user.id, id);
-  const title = other?.name ?? circle?.name ?? "Conversation";
+  const gathering = access.gatheringId ? await (await getDb()).get<{ title: string }>("SELECT title FROM gatherings WHERE id = ?", [access.gatheringId]) : null;
+  const title = other?.name ?? circle?.name ?? gathering?.title ?? "Conversation";
 
   return (
     <div>
@@ -43,14 +44,14 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
             {other ? <Link href={`/members/${other.id}`}>{title}</Link> : circle ? <Link href={`/circles/${circle.id}`}>{title}</Link> : title}
             {other?.isDemo && <DemoBadge />}
           </h1>
-          <p className="text-sm text-ink-500">{other ? `${other.area ?? ""} · private conversation` : "Circle conversation · visible to members only"}</p>
+          <p className="text-sm text-ink-500">{other ? `${other.area ?? ""} · private conversation` : gathering ? "Get-together chat · only people who said yes" : "Circle conversation · visible to members only"}</p>
         </div>
       </header>
 
       <div className="grid gap-5 xl:grid-cols-[1fr_19rem]">
         <MessageThread
           conversationId={id}
-          group={access.kind === "circle"}
+          group={access.kind !== "direct"}
           starters={assistant?.starters ?? []}
           messages={messages.map((m) => ({
             id: m.id,

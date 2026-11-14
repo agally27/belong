@@ -29,7 +29,7 @@ describe.skipIf(!url)("PostgreSQL driver", () => {
     const db = await createPostgresDb(url!);
     try {
       await db.exec("DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
-      expect(await migrate(db)).toEqual(["0001_init.sql"]);
+      expect(await migrate(db)).toEqual(["0001_init.sql", "0002_local_and_gatherings.sql"]);
       expect(await migrate(db)).toEqual([]); // idempotent
       await withDb(db, async () => {
         await ensureBaseline(db);

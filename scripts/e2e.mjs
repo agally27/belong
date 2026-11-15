@@ -3,7 +3,8 @@
  *
  *   BASE_URL=http://localhost:3000 npm run test:e2e
  *
- * Needs a running server in demo mode with a freshly seeded database.
+ * Needs a running server in demo mode with a freshly seeded database. Runs in CI
+ * (.github/workflows/ci.yml) after the production build.
  * Walks the full member journey in a real browser, visits every page at
  * desktop and phone widths, and fails on console errors, failed requests,
  * error pages or horizontal overflow. Screenshots go to ./e2e-screenshots.

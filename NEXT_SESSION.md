@@ -49,7 +49,7 @@ learning from responses (D-032–D-036). Then, at the owner's request, the match
 3. ~~Negation handling~~ — done 2026-11-15.
 4. ~~Password reset and email verification~~ — done 2026-11-15.
 5. ~~Content-Security-Policy~~ — done 2026-11-15 (`src/proxy.ts`).
-6. Wire `scripts/e2e.mjs` into CI.
+6. ~~Browser test in CI~~ — added 2026-11-15 (check the first real run on GitHub).
 
 If the owner HAS supplied credentials, do the matching item in `INTEGRATION_CHECKLIST.md` first.
 

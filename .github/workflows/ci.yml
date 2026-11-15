@@ -29,3 +29,19 @@ jobs:
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/belong_test
       - run: npm run build
+      - name: Install Chromium for the browser test
+        run: npx playwright install --with-deps chromium
+      - name: Browser journey (every page, desktop and phone)
+        run: |
+          rm -f data/e2e.db*
+          DATABASE_FILE=./data/e2e.db PORT=3100 APP_URL=http://localhost:3100 BELONG_INSECURE_COOKIES=true npm start > server.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:3100/api/health > /dev/null && break; sleep 1; done
+          BASE_URL=http://localhost:3100 npm run test:e2e
+      - name: Keep screenshots and server log if the browser test fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure
+          path: |
+            e2e-screenshots/
+            server.log

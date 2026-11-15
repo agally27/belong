@@ -93,7 +93,7 @@ domain, deployment). **Nothing has been deployed.**
   "show earlier". Member-facing Discover, Circles and events lists are not paginated (fine at launch scale).
 - No backups, error monitoring or external analytics are configured.
 - Service-level code is covered by tests; server actions and pages are covered by the browser run rather than unit tests.
-- The browser test is a script, not part of `npm test`, and CI does not run it.
+- The browser test runs in CI after the build (`.github/workflows/ci.yml`), separately from `npm test`.
 
 **Content and design**
 - `/privacy`, `/terms`, `/safety` are plain-English drafts that need legal review.

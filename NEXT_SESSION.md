@@ -67,8 +67,8 @@ Browser test (needs Playwright + Chromium):
 ```bash
 npm run build
 rm -f data/e2e.db*
-DATABASE_FILE=./data/e2e.db PORT=3100 BELONG_INSECURE_COOKIES=true npm start &
-NODE_PATH=$(npm root -g) BASE_URL=http://localhost:3100 npm run test:e2e
+DATABASE_FILE=./data/e2e.db PORT=3100 APP_URL=http://localhost:3100 BELONG_INSECURE_COOKIES=true npm start &
+BASE_URL=http://localhost:3100 npm run test:e2e
 ```
 
 PostgreSQL test, if a local server is available: `npm run test:pg`.

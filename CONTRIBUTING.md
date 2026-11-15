@@ -19,7 +19,8 @@ For UI changes also run the browser test against a fresh database:
 
 ```bash
 npm run build
-DATABASE_FILE=./data/e2e.db PORT=3100 npm start &
+rm -f data/e2e.db*
+DATABASE_FILE=./data/e2e.db PORT=3100 APP_URL=http://localhost:3100 BELONG_INSECURE_COOKIES=true npm start &
 BASE_URL=http://localhost:3100 npm run test:e2e
 ```
 

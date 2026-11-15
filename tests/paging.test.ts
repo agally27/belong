@@ -80,6 +80,7 @@ describe("conversations", () => {
       await markRead(me, cb);
       const circle = await createCircle(a, { name: "Walk", topic: "hiking", capacity: 4 });
       await joinCircle(me, circle);
+      await new Promise((r) => setTimeout(r, 5)); // timestamps are millisecond-precise
       await sendMessage(a, (await getCircle(a, circle))!.conversationId!, "circle news");
       const list = await listConversations(me);
       const by = (id: string) => list.find((c) => c.id === id)!;

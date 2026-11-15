@@ -42,7 +42,7 @@ Fictional members can be asked to "answer" an introduction through a clearly lab
 | `npm run dev` | Development server |
 | `npm run build` / `npm start` | Production build / server |
 | `npm test` | Unit, integration, privacy and component tests (Vitest) |
-| `npm run test:e2e` | Browser journey + every page at desktop and phone widths (needs a running server and Playwright) |
+| `npm run test:e2e` | Browser journey + every page at desktop and phone widths (needs a running server; also runs in CI) |
 | `npm run test:pg` | The seeded journey against a real PostgreSQL database |
 | `npm run lint` / `npm run typecheck` | ESLint / TypeScript |
 | `npm run check` | Lint, typecheck, tests and build |
@@ -80,6 +80,8 @@ Fictional members can be asked to "answer" an introduction through a clearly lab
 - A connection, and therefore messaging, exists only after **both** members approve an introduction.
 - Administrators cannot read companion conversations, memories or private messages.
 - Members can export all their data or permanently delete their account.
+- Email is confirmed before members can contact anyone; passwords can be reset by email.
+- A strict, nonce-based Content-Security-Policy is applied to every page.
 
 These rules are enforced in the service layer and covered by `tests/privacy.test.ts` and `tests/workflow.test.ts`.
 The architecture is prepared for UK GDPR, subject to legal and security review before launch.

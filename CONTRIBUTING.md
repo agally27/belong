@@ -23,8 +23,8 @@ DATABASE_FILE=./data/e2e.db PORT=3100 npm start &
 BASE_URL=http://localhost:3100 npm run test:e2e
 ```
 
-(The script needs Playwright with Chromium available — `npm i -D playwright && npx playwright install chromium` on a
-machine that doesn't already have it. Delete `data/e2e.db*` before each run.)
+Playwright is a pinned dev dependency; on a new machine run `npx playwright install chromium` once. Delete
+`data/e2e.db*` before each run (it expects freshly seeded demo data). CI runs the same steps on every push.
 
 ## Conventions
 

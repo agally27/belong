@@ -36,6 +36,11 @@ const STATUS: Record<string, string> = {
   resolved: "bg-sage-100 text-sage-700",
   suspended: "bg-rose-100 text-rose-700",
   declined: "bg-cream text-ink-700",
+  proposed: "bg-lavender-100 text-lavender-700",
+  confirmed: "bg-sky-100 text-sky-700",
+  completed: "bg-sage-100 text-sage-700",
+  lapsed: "bg-cream text-ink-500",
+  cancelled: "bg-rose-100 text-rose-700",
 };
 
 export function StatusPill({ status }: { status: string }) {

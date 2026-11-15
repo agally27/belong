@@ -59,7 +59,7 @@ const SHOT_OK = (shot) => Boolean(SHOTS && shot);
 
 const MARKETING = ["/", "/pricing", "/about", "/safety", "/privacy", "/terms", "/support", "/login", "/register"];
 const MEMBER = ["/dashboard", "/companion", "/companion/settings", "/memories", "/discover", "/live", "/introductions", "/messages", "/connections", "/circles", "/gatherings", "/events", "/graph", "/profile", "/settings", "/settings/privacy", "/membership", "/notifications", "/help"];
-const ADMIN = ["/admin", "/admin/users", "/admin/signals", "/admin/matching", "/admin/introductions", "/admin/circles", "/admin/moderation", "/admin/subscriptions", "/admin/analytics", "/admin/flags", "/admin/audit"];
+const ADMIN = ["/admin", "/admin/users", "/admin/signals", "/admin/matching", "/admin/introductions", "/admin/circles", "/admin/gatherings", "/admin/moderation", "/admin/subscriptions", "/admin/analytics", "/admin/flags", "/admin/audit"];
 
 const browser = await chromium.launch();
 try {

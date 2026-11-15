@@ -27,14 +27,35 @@ export interface MatchSignal {
   expiresAt?: string | null;
 }
 
+/**
+ * Practical-fit factor strengths: 0 switches a factor off, 1 is the default
+ * effect, 2 doubles it. Kept as strengths (not raw percentages) so they stay
+ * understandable in the admin console.
+ */
+export interface FactorStrengths {
+  distance: number;
+  rarity: number;
+  style: number;
+  timing: number;
+  mutuals: number;
+  /** Learned from how each member has responded to past suggestions. */
+  history: number;
+  /** "How did it go?" feedback after meeting. */
+  feedback: number;
+}
+
 export interface MatchWeights {
   shared: number;
   moments: number;
   complementary: number;
   threshold: number;
+  factors?: Partial<FactorStrengths>;
 }
 
-export const DEFAULT_WEIGHTS: MatchWeights = { shared: 0.4, moments: 0.35, complementary: 0.25, threshold: 22 };
+export const DEFAULT_FACTORS: FactorStrengths = { distance: 1, rarity: 1, style: 1, timing: 1, mutuals: 1, history: 1, feedback: 1 };
+export const DEFAULT_WEIGHTS: MatchWeights = { shared: 0.4, moments: 0.35, complementary: 0.25, threshold: 22, factors: DEFAULT_FACTORS };
+
+export const factorsOf = (w: MatchWeights): FactorStrengths => ({ ...DEFAULT_FACTORS, ...(w.factors ?? {}) });
 
 export type Dimension = "shared" | "moments" | "complementary";
 /** "context" reasons explain the practical fit (distance, timing, style, people in common). They adjust the score but are not a dimension. */
@@ -118,7 +139,8 @@ export function computeMatch(
 ): MatchResult {
   const A = liveSignals(rawA, at);
   const B = liveSignals(rawB, at);
-  const rar = (topic: string) => Math.max(0.6, Math.min(1.6, options.rarity?.(topic) ?? 1));
+  const rarityStrength = factorsOf(weights).rarity;
+  const rar = (topic: string) => 1 + rarityStrength * (Math.max(0.6, Math.min(1.6, options.rarity?.(topic) ?? 1)) - 1);
 
   // Hard filter first: people who could never practically meet are not suggested at all.
   let miles: number | null = null;
@@ -315,15 +337,16 @@ export function computeMatch(
   const extra: MatchReason[] = [];
   const ctx = (text: string, textB = text) => extra.push({ dimension: "context", topics: [], text, textB, weight: 0 });
   let multiplier = 1;
+  const k = factorsOf(weights);
 
   // Distance: nearer is easier. Wording stays vague on purpose.
   if (miles !== null) {
     if (remote) {
-      multiplier *= 0.8;
+      multiplier *= Math.max(0.2, 1 - 0.2 * k.distance);
       ctx("You live further apart, but you're both open to connecting online");
     } else {
       const reach = Math.min(options.a?.radiusMiles ?? 10, options.b?.radiusMiles ?? 10);
-      multiplier *= 1 + 0.15 * (1 - miles / Math.max(reach, 1));
+      multiplier *= 1 + 0.15 * k.distance * (1 - miles / Math.max(reach, 1));
       ctx(`You're ${distanceBand(miles)}`);
     }
   }
@@ -341,7 +364,7 @@ export function computeMatch(
     if (ea >= 0 && eb >= 0) style += ea === eb ? 0.2 : Math.abs(ea - eb) === 1 ? 0.1 : -0.4;
     if (sa.includes("one-to-one") !== sb.includes("one-to-one") && (sa.includes("big-gathering") || sb.includes("big-gathering"))) style -= 0.3;
     style = Math.max(-1, Math.min(1, style));
-    multiplier *= 1 + 0.12 * style;
+    multiplier *= Math.max(0.2, 1 + 0.12 * k.style * style);
     if (sharedStyles.length) ctx(`You're both ${sharedStyles[0]} people`);
   }
 
@@ -351,13 +374,13 @@ export function computeMatch(
   const lb = slotsOf(B);
   const sharedSlots = la.filter((x) => lb.includes(x));
   if (la.length && lb.length) {
-    multiplier *= sharedSlots.length ? 1 + Math.min(0.12, 0.05 * sharedSlots.length) : 0.85;
+    multiplier *= sharedSlots.length ? 1 + k.timing * Math.min(0.12, 0.05 * sharedSlots.length) : Math.max(0.2, 1 - 0.15 * k.timing);
     if (sharedSlots.length) ctx(`You're both usually free on ${SLOT_LABEL[sharedSlots[0]] ?? sharedSlots[0]}`);
   }
 
   // People in common: a friend of a friend is an easier first hello.
   const mutuals = Math.max(0, options.mutuals ?? 0);
-  if (mutuals) multiplier *= 1 + Math.min(0.15, 0.08 * mutuals);
+  if (mutuals) multiplier *= 1 + k.mutuals * Math.min(0.15, 0.08 * mutuals);
 
   const score = Math.round(Math.min(1, base * multiplier) * 100);
   return {

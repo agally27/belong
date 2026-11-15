@@ -3,8 +3,19 @@ import { adminRunNetworkAction, adminSetWeightsAction } from "@/app/actions";
 import { StatusPill, Table, Td } from "@/components/admin-ui";
 import { ActionButton, ActionForm, SubmitButton } from "@/components/forms";
 import { Card, Field, PageHeader, timeAgo } from "@/components/ui";
+import { factorsOf } from "@/lib/matching/engine";
 import { getWeightsAdmin, listMatchesAdmin } from "@/lib/services/admin";
 import { requireAdmin } from "@/lib/session";
+
+const FACTORS = [
+  ["distance", "Distance", "Nearer people score higher; online-only pairs score lower. Outside anyone's travel radius is always excluded."],
+  ["rarity", "Rare interests", "Sharing an unusual interest counts for more than sharing a very common one."],
+  ["style", "Social style", "Similar group size and pace help; opposite extremes of energy count against."],
+  ["timing", "Free time", "Overlapping usual free slots help; none in common counts against."],
+  ["mutuals", "Friends of friends", "Having connections in common helps."],
+  ["history", "Learning from responses", "Leans toward the kinds of suggestion each member tends to accept, and away from those they dismiss."],
+  ["feedback", "After-meeting feedback", "Leans toward topics that led to good meetings for that member."],
+] as const;
 
 export const metadata: Metadata = { title: "Matching" };
 
@@ -34,7 +45,16 @@ export default async function AdminMatchingPage() {
               <input type="number" name="threshold" step="1" min="0" max="100" defaultValue={weights.threshold} className="field" required />
             </Field>
           </div>
-          <SubmitButton className="mt-4" pendingLabel="Saving and re-running…">
+          <h3 className="mt-7 text-lg text-charcoal">Practical-fit factors</h3>
+          <p className="mt-1 text-sm text-ink-500">These adjust a real match up or down; none can create a match on its own. 0 switches a factor off, 1 is the default, 2 doubles its effect.</p>
+          <div className="mt-3 grid gap-x-6 gap-y-4 md:grid-cols-2">
+            {FACTORS.map(([key, label, hint]) => (
+              <Field key={key} label={label} hint={hint}>
+                <input type="number" name={`factor_${key}`} step="0.25" min="0" max="2" defaultValue={factorsOf(weights)[key]} className="field" required />
+              </Field>
+            ))}
+          </div>
+          <SubmitButton className="mt-5" pendingLabel="Saving and re-running…">
             Save weights
           </SubmitButton>
         </ActionForm>

@@ -46,6 +46,9 @@ export function nextSlotDate(slot: string, from = new Date(), leadDays = 3): Dat
     if (part === "weekend" ? day === 6 || day === 0 : day >= 2 && day <= 4) break;
     d.setUTCDate(d.getUTCDate() + 1);
   }
+  // Slot hours are UK local time: shift by the London offset on that date (1 hour in summer).
+  const londonHour = Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: "Europe/London" }).format(d));
+  d.setUTCHours(d.getUTCHours() - (londonHour - d.getUTCHours()));
   return d;
 }
 
@@ -284,8 +287,23 @@ export async function gatheringToCircle(userId: string, gatheringId: string, nam
   if (inv.status !== "accepted" || !["confirmed", "completed"].includes(g.status)) throw forbidden("Only people who joined can do this.");
   if (g.circle_id) return g.circle_id;
   const name = nameRaw.trim().slice(0, 60) || `${topicLabel(g.topic)[0].toUpperCase()}${topicLabel(g.topic).slice(1)} regulars`;
-  const members = (await accepted(gatheringId)).slice(0, 8);
+  // Respect each person's Circle allowance: the creator needs room; others join only if they have room,
+  // otherwise they're invited to join later.
+  const { getLimits } = await import("./subscriptions");
   const db = await getDb();
+  const hasRoom = async (u: string) => {
+    const limit = (await getLimits(u)).circles;
+    if (limit < 0) return true;
+    const n = await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM circle_members WHERE user_id = ?", [u]);
+    return Number(n?.n ?? 0) < limit;
+  };
+  if (!(await hasRoom(userId))) {
+    throw new AppError("Your membership's Circle allowance is full. Leave a Circle or upgrade, then try again.", "limit");
+  }
+  const everyone = (await accepted(gatheringId)).slice(0, 8);
+  const members: string[] = [];
+  const later: string[] = [];
+  for (const u of everyone) ((u === userId || (await hasRoom(u))) ? members : later).push(u);
   const id = uid();
   const ts = now();
   await db.tx(async () => {
@@ -304,6 +322,7 @@ export async function gatheringToCircle(userId: string, gatheringId: string, nam
     await db.run("UPDATE gatherings SET circle_id = ? WHERE id = ?", [id, gatheringId]);
   });
   for (const m of members) if (m !== userId) await notify(m, "circle", `You're now part of ${name}`, "Your get-together has become a regular Circle.", `/circles/${id}`);
+  for (const m of later) await notify(m, "circle", `${name} is now a Circle`, "Your get-together became a regular Circle. Your membership's Circle allowance is full, so you haven't been added — you can join from its page once you have room.", `/circles/${id}`);
   await audit(userId, "gathering.became_circle", "circle", id);
   return id;
 }

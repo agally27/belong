@@ -63,7 +63,8 @@ export async function flag(key: string): Promise<boolean> {
 export async function getWeights(): Promise<MatchWeights> {
   const db = await getDb();
   const row = await db.get<{ value: string }>("SELECT value FROM app_settings WHERE key = 'matching_weights'");
-  return { ...DEFAULT_WEIGHTS, ...json<Partial<MatchWeights>>(row?.value, {}) };
+  const stored = json<Partial<MatchWeights>>(row?.value, {});
+  return { ...DEFAULT_WEIGHTS, ...stored, factors: { ...DEFAULT_WEIGHTS.factors, ...(stored.factors ?? {}) } };
 }
 
 export async function getConsents(userId: string): Promise<Record<ConsentKey, boolean>> {

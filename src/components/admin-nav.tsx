@@ -11,6 +11,7 @@ const ITEMS = [
   ["/admin/matching", "Matching"],
   ["/admin/introductions", "Introductions"],
   ["/admin/circles", "Circles"],
+  ["/admin/gatherings", "Gatherings"],
   ["/admin/moderation", "Moderation"],
   ["/admin/subscriptions", "Subscriptions"],
   ["/admin/analytics", "Analytics"],

@@ -534,7 +534,14 @@ export async function adminRunNetworkAction(): Promise<ActionState> {
 export async function adminSetWeightsAction(_: ActionState, f: FormData): Promise<ActionState> {
   const a = await requireAdmin();
   return run(async () => {
-    await admin.setWeights(a.id, { shared: Number(f.get("shared")), moments: Number(f.get("moments")), complementary: Number(f.get("complementary")), threshold: Number(f.get("threshold")) });
+    const factor = (k: string) => Number(f.get(`factor_${k}`) ?? 1);
+    await admin.setWeights(a.id, {
+      shared: Number(f.get("shared")),
+      moments: Number(f.get("moments")),
+      complementary: Number(f.get("complementary")),
+      threshold: Number(f.get("threshold")),
+      factors: { distance: factor("distance"), rarity: factor("rarity"), style: factor("style"), timing: factor("timing"), mutuals: factor("mutuals"), history: factor("history"), feedback: factor("feedback") },
+    });
     await admin.runNetworkAdmin(a.id);
     return "Weights saved and the network re-run.";
   });
@@ -574,6 +581,11 @@ export async function adminUpdatePlanAction(_: ActionState, f: FormData): Promis
 export async function adminSetCircleStatusAction(_: ActionState, f: FormData): Promise<ActionState> {
   const a = await requireAdmin();
   return run(() => admin.setCircleStatus(a.id, str(f, "id"), str(f, "status") === "closed" ? "closed" : "open"));
+}
+
+export async function adminCancelGatheringAction(_: ActionState, f: FormData): Promise<ActionState> {
+  const a = await requireAdmin();
+  return run(() => admin.cancelGatheringAdmin(a.id, str(f, "id")));
 }
 
 export async function adminCloseTicketAction(_: ActionState, f: FormData): Promise<ActionState> {

@@ -173,10 +173,11 @@ export async function setWeights(actorId: string, w: MatchWeights) {
   await assertAdmin(actorId);
   const ok = [w.shared, w.moments, w.complementary].every((x) => Number.isFinite(x) && x >= 0 && x <= 1) && Number.isFinite(w.threshold) && w.threshold >= 0 && w.threshold <= 100;
   if (!ok || w.shared + w.moments + w.complementary <= 0) throw new AppError("Weights must be between 0 and 1, and the threshold between 0 and 100.");
+  if (Object.values(w.factors ?? {}).some((x) => !Number.isFinite(x) || x < 0 || x > 2)) throw new AppError("Factor strengths must be between 0 (off) and 2 (double).");
   const db = await getDb();
   await db.run(
     "INSERT INTO app_settings (key, value, updated_at) VALUES ('matching_weights', ?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
-    [JSON.stringify({ ...DEFAULT_WEIGHTS, ...w }), now()],
+    [JSON.stringify({ ...DEFAULT_WEIGHTS, ...w, factors: { ...DEFAULT_WEIGHTS.factors, ...(w.factors ?? {}) } }), now()],
   );
   await audit(actorId, "admin.weights_updated", "settings", "matching_weights", { ...w });
 }
@@ -343,4 +344,28 @@ export async function analytics(actorId: string, days = 14) {
     introsByStatus: [...introBy.entries()].map(([label, n]) => ({ label, n })),
     funnel,
   };
+}
+
+export async function listGatheringsAdmin(actorId: string) {
+  await assertAdmin(actorId);
+  const db = await getDb();
+  return db.all<{ id: string; title: string; topic: string; area: string | null; slot: string; starts_at: string; status: string; created_at: string; invited: number; accepted: number; declined: number; circle_id: string | null }>(
+    `SELECT g.id, g.title, g.topic, g.area, g.slot, g.starts_at, g.status, g.created_at, g.circle_id,
+            (SELECT COUNT(*) FROM gathering_invites i WHERE i.gathering_id = g.id) AS invited,
+            (SELECT COUNT(*) FROM gathering_invites i WHERE i.gathering_id = g.id AND i.status = 'accepted') AS accepted,
+            (SELECT COUNT(*) FROM gathering_invites i WHERE i.gathering_id = g.id AND i.status = 'declined') AS declined
+     FROM gatherings g ORDER BY g.created_at DESC LIMIT 200`,
+  );
+}
+
+export async function cancelGatheringAdmin(actorId: string, gatheringId: string) {
+  await assertAdmin(actorId);
+  const db = await getDb();
+  const g = await db.get<{ title: string; status: string }>("SELECT title, status FROM gatherings WHERE id = ?", [gatheringId]);
+  if (!g) throw notFound();
+  if (!["proposed", "confirmed"].includes(g.status)) throw new AppError("Only upcoming gatherings can be cancelled.");
+  await db.run("UPDATE gatherings SET status = 'cancelled' WHERE id = ?", [gatheringId]);
+  const people = await db.all<{ user_id: string }>("SELECT user_id FROM gathering_invites WHERE gathering_id = ? AND status != 'declined'", [gatheringId]);
+  for (const p of people) await notify(p.user_id, "gathering", `Cancelled: ${g.title}`, "This get-together has been cancelled by the BELONG team. Sorry for the change of plan.", "/gatherings");
+  await audit(actorId, "admin.gathering_cancelled", "gathering", gatheringId);
 }

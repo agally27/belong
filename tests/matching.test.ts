@@ -111,3 +111,27 @@ describe("matching engine", () => {
     expect(m.reasons.length).toBeLessThanOrEqual(6);
   });
 });
+
+describe("simulated companion: negation", () => {
+  it("separates liked from disliked topics by clause", async () => {
+    const { positiveTopics } = await import("@/lib/ai/mock");
+    expect(positiveTopics("I don't like hiking")).toEqual({ liked: [], disliked: ["hiking"] });
+    expect(positiveTopics("I love board games but I hate running")).toEqual({ liked: ["board-games"], disliked: ["running"] });
+    expect(positiveTopics("Not really into yoga. Pottery is my thing though!")).toEqual({ liked: ["pottery"], disliked: ["yoga"] });
+    expect(positiveTopics("I can't stand cooking, never have")).toEqual({ liked: [], disliked: ["cooking"] });
+    expect(positiveTopics("I really enjoy cycling")).toEqual({ liked: ["cycling"], disliked: [] });
+  });
+
+  it("never proposes memories or intentions for things the member dislikes", async () => {
+    const { mockCompanionReply } = await import("@/lib/ai/mock");
+    const base = { companionName: "Sol", tone: "warm", proactivity: "balanced", memberName: "Ann", interests: [], memories: [], intentions: [], history: [], waitingSuggestions: 0, waitingIntroductions: 0, canProposeMemories: true };
+    const r1 = mockCompanionReply({ ...base, message: "I don't like hiking at all" });
+    expect(r1.memories).toEqual([]);
+    expect(r1.intention).toBeNull();
+    expect(r1.text).toMatch(/isn't for you/);
+    expect(r1.text).not.toMatch(/lovely/);
+    const r2 = mockCompanionReply({ ...base, message: "I love pottery but I hate running. I'd love to find someone to do pottery with this weekend" });
+    expect(r2.memories.map((m) => m.content).join(" ")).not.toMatch(/running/);
+    expect(r2.intention?.title).toMatch(/pottery/i);
+  });
+});

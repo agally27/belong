@@ -54,6 +54,23 @@ const GENERIC = [
 const CRISIS = /(suicid|kill myself|end my life|self[- ]harm|hurt myself|don't want to be here|no reason to live)/i;
 const LONELY = /(lonely|loneliness|isolated|no friends|no one to talk to|nobody to talk to|on my own a lot|feel alone)/i;
 
+const NEGATION =
+  /\b(don'?t|do not|doesn'?t|didn'?t|never|not (really|much|a fan|into|keen|for me|my thing)|no longer|hate|hated|can'?t stand|cannot stand|dislike|not interested|gave up|bored (of|with)|sick of|fed up with|avoid)\b/i;
+
+/**
+ * Topics the member is positive about. A topic mentioned only in a negative
+ * clause ("I don't like hiking", "…but I hate running") is left out, so it is
+ * never proposed as a memory or an intention.
+ */
+export function positiveTopics(text: string): { liked: string[]; disliked: string[] } {
+  const clauses = text.split(/[.;!?]|,\s*(?:but|though|although)\b|\bbut\b|\bwhereas\b/i).filter((c) => c.trim());
+  const liked = new Set<string>();
+  const disliked = new Set<string>();
+  for (const c of clauses) for (const t of extractTopics(c)) (NEGATION.test(c) ? disliked : liked).add(t);
+  for (const t of disliked) liked.delete(t);
+  return { liked: [...liked], disliked: [...disliked] };
+}
+
 function detectIntention(text: string, topics: string[]): ProposedIntention | null {
   if (!topics.length) return null;
   const wants =
@@ -164,7 +181,7 @@ export function mockCompanionReply(ctx: CompanionContext): CompanionReply {
     };
   }
 
-  const topics = extractTopics(text);
+  const { liked: topics, disliked } = positiveTopics(text);
   const intention = detectIntention(text, topics);
   const memories = ctx.canProposeMemories ? detectMemories(text, topics, ctx) : [];
   const parts: string[] = [];
@@ -175,7 +192,7 @@ export function mockCompanionReply(ctx: CompanionContext): CompanionReply {
       `I can be a good listener, but what I'd really like is to help you find a few people who feel easy to be around.`,
     );
   } else {
-    parts.push(pick(OPENERS[tone], seed));
+    if (topics.length || !disliked.length) parts.push(pick(OPENERS[tone], seed));
   }
 
   if (topics.length) {
@@ -197,6 +214,8 @@ export function mockCompanionReply(ctx: CompanionContext): CompanionReply {
     } else {
       parts.push(pick(FOLLOW_UPS[main.category] ?? GENERIC, seed));
     }
+  } else if (disliked.length && !LONELY.test(text)) {
+    parts.push(`Fair enough — ${topicLabel(disliked[0])} isn't for you. What do you enjoy instead?`);
   } else if (!LONELY.test(text)) {
     parts.push(pick(GENERIC, seed));
   } else {

@@ -106,3 +106,24 @@ describe("gatherings: allowances and administration", () => {
     }),
   );
 });
+
+describe("host removals for moderators", () => {
+  it(
+    "lists removals with repeat counts, admins only",
+    inDb(async (db) => {
+      const admin = await makeMember("Admin");
+      await db.run("UPDATE users SET role = 'admin' WHERE id = ?", [admin]);
+      const host = await makeMember("Host");
+      const c = await createCircle(host, { name: "Walkers", topic: "hiking", capacity: 5 });
+      const m = await makeMember("Mo");
+      const { joinCircle, removeMember } = await import("@/lib/services/circles");
+      await joinCircle(m, c);
+      await removeMember(host, c, m);
+      const { listCircleRemovals } = await import("@/lib/services/admin");
+      const [r] = await listCircleRemovals(admin);
+      expect(r).toMatchObject({ circle: "Walkers", removed: "Mo", host: "Host" });
+      expect(Number(r.times_removed)).toBe(1);
+      await expect(listCircleRemovals(host)).rejects.toThrow(/Administrator/);
+    }),
+  );
+});

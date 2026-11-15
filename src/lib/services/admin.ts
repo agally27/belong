@@ -392,3 +392,24 @@ export async function cancelGatheringAdmin(actorId: string, gatheringId: string)
   for (const p of people) await notify(p.user_id, "gathering", `Cancelled: ${g.title}`, "This get-together has been cancelled by the BELONG team. Sorry for the change of plan.", "/gatherings");
   await audit(actorId, "admin.gathering_cancelled", "gathering", gatheringId);
 }
+
+/**
+ * Removals by Circle hosts, newest first, with how often each person has been
+ * removed and how often each host has removed someone — so moderators can spot
+ * patterns in either direction.
+ */
+export async function listCircleRemovals(actorId: string, limit = 50) {
+  await assertAdmin(actorId);
+  const db = await getDb();
+  return db.all<{ circle: string; removed_id: string; removed: string | null; host: string | null; created_at: string; times_removed: number; host_removals: number }>(
+    `SELECT c.name AS circle, r.user_id AS removed_id, pr.display_name AS removed, ph.display_name AS host, r.created_at,
+            (SELECT COUNT(*) FROM circle_removals x WHERE x.user_id = r.user_id) AS times_removed,
+            (SELECT COUNT(*) FROM circle_removals y WHERE y.removed_by = r.removed_by) AS host_removals
+     FROM circle_removals r
+     JOIN circles c ON c.id = r.circle_id
+     LEFT JOIN profiles pr ON pr.user_id = r.user_id
+     LEFT JOIN profiles ph ON ph.user_id = r.removed_by
+     ORDER BY r.created_at DESC LIMIT ?`,
+    [limit],
+  );
+}

@@ -43,7 +43,7 @@ If the owner has given no other instruction, work down this list, one commit eac
 2. **Notification emails** (opt-in per type, e.g. new introduction, gathering confirmed) through the existing email
    adapter, with an unsubscribe link and a daily-digest option. Respect `marketing_emails` only for marketing.
 3. **Dockerfile** for self-hosting (multi-stage, non-root, includes `db/migrations`), documented in `docs/DEPLOYMENT.md`.
-4. **Admin view of host removals** (from `circle_removals`) in Admin → Circles, so moderators can spot patterns.
+4. ~~Admin view of host removals~~ — done 2026-11-15 (Admin → Circles).
 5. Ideas still open with the owner: conversation-style signals (needs the live AI), bridges between informal friend
    clusters (not just Circles).
 

@@ -122,3 +122,5 @@ PostgreSQL journey passes with all three migrations; browser run 421 checks, 0 p
 - axe-core added to the browser test. First run found six serious issues (colour contrast on 40+ pages, an ARIA
   misuse, a colour-only link, graph link naming, nested interactive controls, unfocusable scroll regions); all fixed.
   Browser run: 446 checks, 0 problems, 0 serious/critical accessibility issues.
+- Admin → Circles shows removals by hosts with repeat counts. Tests 121 passed, 1 skipped; CI run 16 (with
+  accessibility checks) passed on GitHub.

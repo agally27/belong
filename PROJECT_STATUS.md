@@ -5,7 +5,7 @@ _Last updated: 2026-11-15 · life stages, reciprocity and bridges added_
 ## Summary
 
 All 27 modules in the specification are built and working locally with no external credentials.
-Verified by: 120 automated tests, a real-browser run of the whole member journey plus every page at desktop and
+Verified by: 121 automated tests, a real-browser run of the whole member journey plus every page at desktop and
 phone widths (446 checks), a clean lint/typecheck/production build, and the seeded journey on PostgreSQL 16.
 
 **Not done, by design:** production services (database hosting, Claude key, Stripe, email, push, maps, storage,

@@ -14,6 +14,7 @@ export interface User {
   status: "active" | "suspended";
   isDemo: boolean;
   onboardedAt: string | null;
+  emailVerifiedAt: string | null;
   createdAt: string;
 }
 
@@ -25,6 +26,7 @@ type UserRow = {
   status: string;
   is_demo: number;
   onboarded_at: string | null;
+  email_verified_at?: string | null;
   created_at: string;
 };
 
@@ -35,6 +37,7 @@ export const toUser = (r: UserRow): User => ({
   status: r.status as User["status"],
   isDemo: Boolean(r.is_demo),
   onboardedAt: r.onboarded_at,
+  emailVerifiedAt: r.email_verified_at ?? null,
   createdAt: r.created_at,
 });
 
@@ -131,6 +134,12 @@ export async function register(input: z.input<typeof registerSchema>): Promise<{
     );
   });
   await audit(id, "user.registered", "user", id);
+  const { sendVerificationEmail } = await import("./verification");
+  try {
+    await sendVerificationEmail(id);
+  } catch (e) {
+    console.error("[belong:email] verification email failed", e);
+  }
   await track(null, "signup");
   const token = await createSession(id);
   const row = await db.get<UserRow>("SELECT * FROM users WHERE id = ?", [id]);

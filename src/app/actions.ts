@@ -24,6 +24,7 @@ import * as profile from "@/lib/services/profile";
 import * as safety from "@/lib/services/safety";
 import { setSignalRevoked, syncSignals } from "@/lib/services/signals";
 import * as subs from "@/lib/services/subscriptions";
+import * as verification from "@/lib/services/verification";
 
 /* --------------------------------- helpers -------------------------------- */
 
@@ -83,6 +84,35 @@ export async function loginAction(_: ActionState, f: FormData): Promise<ActionSt
     return fail(e);
   }
   redirect(home);
+}
+
+export async function requestPasswordResetAction(_: ActionState, f: FormData): Promise<ActionState> {
+  try {
+    await verification.requestPasswordReset(str(f, "email"));
+  } catch (e) {
+    console.error("[belong:email] reset email failed", e);
+  }
+  // Same answer whether or not the account exists.
+  return { ok: true, message: "If there's a BELONG account for that email, we've sent a link to reset the password. It works once, for an hour." };
+}
+
+export async function resetPasswordAction(_: ActionState, f: FormData): Promise<ActionState> {
+  try {
+    const password = String(f.get("password") ?? "");
+    if (password !== String(f.get("confirm") ?? "")) throw new AppError("The two passwords don't match.");
+    await verification.resetPassword(str(f, "token"), password);
+  } catch (e) {
+    return fail(e);
+  }
+  redirect("/login?reset=1");
+}
+
+export async function resendVerificationAction(): Promise<ActionState> {
+  const user = await requireUser();
+  return run(async () => {
+    const sent = await verification.sendVerificationEmail(user.id);
+    return sent ? `We've sent a new link to ${user.email}.` : "Your email address is already confirmed.";
+  });
 }
 
 export async function logoutAction() {

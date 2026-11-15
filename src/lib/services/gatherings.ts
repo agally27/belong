@@ -7,6 +7,7 @@ import { AppError, audit, flag, forbidden, notFound, notify } from "./core";
 import { previewsById, type MemberPreview } from "./members";
 import { taxonomyMatcher } from "../matching/semantic";
 import { networkContexts, networkSignals } from "./signals";
+import { assertVerified } from "./verification";
 
 /**
  * Companion-proposed gatherings: a one-off, low-pressure get-together for a
@@ -229,6 +230,7 @@ export async function respondToGathering(userId: string, gatheringId: string, ac
   return db.tx(async () => {
     const { g } = await invite(userId, gatheringId);
     if (!["proposed", "confirmed"].includes(g.status) || g.starts_at <= now()) throw new AppError("This gathering is no longer open.", "conflict");
+    if (accept) await assertVerified(userId);
     const going = await accepted(gatheringId);
     if (accept && !going.includes(userId) && going.length >= Number(g.max_size)) throw new AppError("This gathering is now full.", "conflict");
     await db.run("UPDATE gathering_invites SET status = ?, responded_at = ? WHERE gathering_id = ? AND user_id = ?", [accept ? "accepted" : "declined", now(), gatheringId, userId]);

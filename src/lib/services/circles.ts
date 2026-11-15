@@ -5,6 +5,7 @@ import { taxonomyMatcher } from "../matching/semantic";
 import { AppError, audit, flag, forbidden, notFound, notify } from "./core";
 import { previewsById, type MemberPreview } from "./members";
 import { getLimits } from "./subscriptions";
+import { assertVerified } from "./verification";
 
 /** BELONG Circles: small groups (4–8 people) around a shared interest. */
 export const CIRCLE_MIN = 4;
@@ -117,6 +118,7 @@ export const circleSchema = z.object({
 export async function createCircle(userId: string, input: z.input<typeof circleSchema>): Promise<string> {
   if (!(await flag("circles"))) throw forbidden("Circles are paused right now.");
   const d = circleSchema.parse(input);
+  await assertVerified(userId);
   await assertCircleCapacity(userId);
   const db = await getDb();
   const id = uid();
@@ -141,6 +143,7 @@ export async function createCircle(userId: string, input: z.input<typeof circleS
 
 export async function joinCircle(userId: string, circleId: string) {
   if (!(await flag("circles"))) throw forbidden("Circles are paused right now.");
+  await assertVerified(userId);
   const db = await getDb();
   await db.tx(async () => {
     const circle = await db.get<CircleRow>("SELECT * FROM circles WHERE id = ?", [circleId]);

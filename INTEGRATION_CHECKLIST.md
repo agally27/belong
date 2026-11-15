@@ -46,11 +46,17 @@ Legend: ✅ ready — just add credentials · 🔧 adapter stub — small implem
 - Everything else (plans, limits, upgrade/downgrade UI, admin pricing editor) is done. Keep Stripe prices in step with
   Admin → Subscriptions.
 
-## 5. Email 🔧
+## 5. Email ✅ (verify with a real key)
 
-- Needed for: email verification, password reset, notification emails. **None of these exist yet** — see `PROJECT_STATUS.md`.
-- Provide: a provider key (Resend, Postmark, SES…) as `EMAIL_API_KEY`, and `EMAIL_FROM`.
-- To write: `getEmailProvider()` in `src/lib/adapters/notifications.ts`, then the verification and reset flows.
+- Email verification and password reset are built. Without a provider, emails go to the in-memory
+  development outbox at `/dev/outbox` (demo mode only), and verification is **not enforced** outside demo mode so
+  nobody is locked out by an email that can't arrive.
+- To go live: create a Resend account and verify your sending domain, then set `EMAIL_PROVIDER=resend`,
+  `EMAIL_API_KEY`, `EMAIL_FROM` (e.g. `BELONG <hello@your-domain>`) and `APP_URL` (the public URL used in links).
+  Verification then becomes required before members can ask for introductions, join Circles or accept get-togethers.
+- The Resend adapter (`src/lib/adapters/notifications.ts`) follows Resend's documented HTTP API but **has not been
+  tested with a live key**. To use another provider, add it next to Resend in `getEmailProvider()`.
+- Not yet emailed: notification digests (in-app only for now).
 
 ## 6. Push notifications 🔧 (optional)
 
@@ -97,13 +103,15 @@ Legend: ✅ ready — just add credentials · 🔧 adapter stub — small implem
 | --- | --- | --- |
 | `DATABASE_URL` | Yes | PostgreSQL/Supabase connection string |
 | `BELONG_DEMO_MODE` | Yes (`false`) | Disables all demo behaviour |
-| `NEXT_PUBLIC_APP_URL` | Yes | Public base URL |
+| `APP_URL` | Yes | Public base URL used in email links (read at runtime) |
+| `NEXT_PUBLIC_APP_URL` | Optional | Same, fixed at build time |
+| `EMAIL_PROVIDER`, `EMAIL_API_KEY`, `EMAIL_FROM` | Yes, for launch | Verification and password-reset emails (Resend) |
 | `ANTHROPIC_API_KEY` | For live AI | Claude companion |
 | `BELONG_CLAUDE_MODEL` | No | Model override |
 | `BELONG_AI_PROVIDER` | No | `mock` forces the simulation |
 | `CRON_SECRET` | Recommended | Enables the scheduled network run |
 | `BELONG_AUTO_MIGRATE` | No | `false` to migrate manually |
 | `BELONG_PAYMENTS_PROVIDER`, `STRIPE_*` | For payments | After the Stripe adapter is written |
-| `EMAIL_*`, `PUSH_API_KEY`, `EMBEDDINGS_API_KEY`, `MAPS_API_KEY`, `STORAGE_BUCKET` | No | Reserved for the adapters above |
+| `PUSH_API_KEY`, `EMBEDDINGS_API_KEY`, `MAPS_API_KEY`, `STORAGE_BUCKET` | No | Reserved for the adapters above |
 | `DATABASE_FILE` | No | SQLite path for local development |
 | `BELONG_INSECURE_COOKIES` | Never in production | Allows session cookies over plain HTTP for local production-mode testing |

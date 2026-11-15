@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { Bell, LogOut } from "lucide-react";
-import { logoutAction } from "@/app/actions";
+import { logoutAction, resendVerificationAction } from "@/app/actions";
+import { ActionButton } from "@/components/forms";
+import { emailConfigured } from "@/lib/adapters/notifications";
+import { verificationRequired } from "@/lib/services/verification";
 import { MobileNav, SideNav } from "@/components/app-nav";
 import { Avatar, Badge, Logo } from "@/components/ui";
 import { env } from "@/lib/config";
@@ -80,6 +83,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             {counts.notifications > 0 && <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-ivory bg-lavender-600" />}
           </Link>
         </header>
+        {verificationRequired() && !user.emailVerifiedAt && (
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-peach-200 bg-peach-100/60 px-4 py-2 text-center text-sm text-peach-700">
+            <span>Please confirm your email address ({user.email}) so you can start meeting people.</span>
+            <ActionButton action={resendVerificationAction} variant="ghost" className="!py-1 underline">
+              Send a new link
+            </ActionButton>
+            {!emailConfigured() && (
+              <Link href="/dev/outbox" className="font-medium underline">
+                Open the development outbox
+              </Link>
+            )}
+          </div>
+        )}
         {env.demoMode() && user.isDemo && (
           <div className="border-b border-sky-200 bg-sky-50 px-4 py-2 text-center text-xs text-sky-700">
             <Badge tone="sky" className="mr-2">

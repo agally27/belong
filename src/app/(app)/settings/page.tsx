@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight, CreditCard, LifeBuoy, ShieldCheck, Sparkles, UserRound } from "lucide-react";
-import { changePasswordAction, logoutAction } from "@/app/actions";
-import { ActionForm, SubmitButton } from "@/components/forms";
+import { changePasswordAction, logoutAction, resendVerificationAction } from "@/app/actions";
+import { ActionButton, ActionForm, SubmitButton } from "@/components/forms";
 import { Button, Card, Field, PageHeader, formatDate } from "@/components/ui";
 import { requireMember } from "@/lib/session";
 
@@ -44,6 +44,18 @@ export default async function SettingsPage() {
           <div>
             <dt className="text-ink-500">Email</dt>
             <dd className="font-medium text-charcoal">{user.email}</dd>
+            <dd className="mt-1 text-xs">
+              {user.emailVerifiedAt ? (
+                <span className="text-sage-700">Confirmed</span>
+              ) : (
+                <span className="inline-flex flex-wrap items-center gap-2 text-peach-700">
+                  Not confirmed yet
+                  <ActionButton action={resendVerificationAction} variant="ghost" className="!px-2 !py-0.5 text-xs underline">
+                    Send a new link
+                  </ActionButton>
+                </span>
+              )}
+            </dd>
           </div>
           <div>
             <dt className="text-ink-500">Member since</dt>

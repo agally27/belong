@@ -5,8 +5,8 @@ _Last updated: 2026-11-15 · life stages, reciprocity and bridges added_
 ## Summary
 
 All 27 modules in the specification are built and working locally with no external credentials.
-Verified by: 111 automated tests, a real-browser run of the whole member journey plus every page at desktop and
-phone widths (429 checks), a clean lint/typecheck/production build, and the seeded journey on PostgreSQL 16.
+Verified by: 115 automated tests, a real-browser run of the whole member journey plus every page at desktop and
+phone widths (443 checks), a clean lint/typecheck/production build, and the seeded journey on PostgreSQL 16.
 
 **Not done, by design:** production services (database hosting, Claude key, Stripe, email, push, maps, storage,
 domain, deployment). **Nothing has been deployed.**
@@ -17,7 +17,7 @@ domain, deployment). **Nothing has been deployed.**
 | --- | --- | --- |
 | M0 | Environment and repository | ✅ (see limitations: branch, container) |
 | M1 | Design system and application foundation | ✅ |
-| M2 | Authentication, onboarding and profiles | ✅ (no email verification / password reset — needs email) |
+| M2 | Authentication, onboarding and profiles | ✅ (verification and reset built; real delivery needs an email key) |
 | M3 | Personal AI companion | ✅ simulated; Claude adapter written, untested live |
 | M4 | Memory architecture | ✅ |
 | M5 | Agent network and connection signals | ✅ |
@@ -45,7 +45,8 @@ domain, deployment). **Nothing has been deployed.**
 ## Known limitations
 
 **Account and security**
-- No email verification and no "forgot password" flow (both need an email provider).
+- Email verification and password reset are built, but use a local outbox until an email provider is configured;
+  outside demo mode verification isn't enforced until then.
 - No two-factor authentication. Sign-in throttling is in-memory per server instance.
 - No Content-Security-Policy header yet. No independent security review has been done.
 

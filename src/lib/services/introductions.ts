@@ -3,6 +3,7 @@ import { reasonTexts, type MatchReason } from "../matching/engine";
 import { AppError, audit, flag, forbidden, isBlockedPair, notFound, notify, track } from "./core";
 import { previewsById, type MemberPreview } from "./members";
 import { getLimits } from "./subscriptions";
+import { assertVerified } from "./verification";
 
 /**
  * Introductions. The invariant this module protects:
@@ -54,6 +55,7 @@ export async function requestIntroduction(userId: string, matchId: string, note?
   );
   if (!match || (match.user_a !== userId && match.user_b !== userId)) throw forbidden("That suggestion isn't available to you.");
   if (match.status !== "suggested") throw new AppError("This suggestion is no longer available.", "conflict");
+  await assertVerified(userId);
   const other = match.user_a === userId ? match.user_b : match.user_a;
   if (await isBlockedPair(userId, other)) throw forbidden("This introduction isn't available.");
   const cleanNote = (note ?? "").trim().slice(0, 300) || null;
@@ -102,6 +104,7 @@ export async function respondToIntroduction(
     const iAmA = intro.user_a === userId;
     const other = iAmA ? intro.user_b : intro.user_a;
     if (decision === "approved" && (await isBlockedPair(userId, other))) throw forbidden("This introduction isn't available.");
+    if (decision === "approved") await assertVerified(userId);
     await db.run(`UPDATE introductions SET ${iAmA ? "a_decision" : "b_decision"} = ? WHERE id = ?`, [decision, introId]);
     await audit(userId, `introduction.${decision}`, "introduction", introId);
 

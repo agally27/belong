@@ -8,12 +8,18 @@ import { DEMO_ADMIN_EMAIL, DEMO_ADMIN_PASSWORD, DEMO_MEMBER_EMAIL, DEMO_PASSWORD
 
 export const metadata: Metadata = { title: "Sign in" };
 
-export default function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ reset?: string }> }) {
   const demo = env.demoMode();
+  const { reset } = await searchParams;
   return (
     <>
       <h1 className="text-4xl text-charcoal">Welcome back</h1>
       <p className="mt-2 text-ink-500">Sign in to see what your companion has noticed.</p>
+      {reset && (
+        <Notice tone="sage" className="mt-5">
+          Your password has been changed. Please sign in with your new one.
+        </Notice>
+      )}
       <Card className="mt-7">
         <ActionForm action={loginAction} className="space-y-4">
           <Field label="Email">
@@ -25,6 +31,11 @@ export default function LoginPage() {
           <SubmitButton className="w-full" pendingLabel="Signing in…">
             Sign in
           </SubmitButton>
+          <p className="text-center text-sm">
+            <Link href="/forgot-password" className="text-lavender-600 hover:underline">
+              Forgotten your password?
+            </Link>
+          </p>
         </ActionForm>
       </Card>
       <p className="mt-5 text-center text-sm text-ink-500">

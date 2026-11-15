@@ -48,7 +48,7 @@ learning from responses (D-032–D-036). Then, at the owner's request, the match
 2. **Pagination** for messages, notifications and admin tables; batch the per-row queries in
    `listConversations`, `circles.view` and `events.view`.
 3. ~~Negation handling~~ — done 2026-11-15.
-4. **Password reset and email verification** behind the email adapter, using the dev outbox locally.
+4. ~~Password reset and email verification~~ — done 2026-11-15.
 5. **Content-Security-Policy** header in `next.config.ts`, verified with `scripts/e2e.mjs`.
 6. Wire `scripts/e2e.mjs` into CI.
 

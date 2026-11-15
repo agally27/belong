@@ -249,6 +249,9 @@ export async function seedDemo(db: Db) {
     await syncSignals(uidv);
   }
 
+  // Demo accounts have confirmed their (fictional) email addresses.
+  await db.run("UPDATE users SET email_verified_at = created_at WHERE is_demo = 1");
+
   // The agent network compares signals and records opportunities.
   await runNetwork({ quiet: true });
 

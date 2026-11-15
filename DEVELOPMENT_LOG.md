@@ -100,3 +100,10 @@ PostgreSQL journey passes with all three migrations; browser run 421 checks, 0 p
 - Fixes found by reviewing screenshots: double-booked gatherings (D-044), duplicate titles, pair wording in group titles.
 - Tests: `tests/matching-ideas.test.ts` (14). Total 111 passed, 1 skipped; PostgreSQL with five migrations passes;
   browser run 429 checks, 0 problems.
+
+**Account work**
+- Email verification and password reset (migration `0006`, `services/verification.ts`), Resend adapter,
+  `/forgot-password`, `/reset-password`, `/verify-email`, demo-only `/dev/outbox`, confirmation banner and Settings status.
+- Bug found in the browser run: email links used the build-time URL; now `APP_URL` at runtime (D-047).
+- Tests: `tests/verification.test.ts` (4). Total 115 passed, 1 skipped; PostgreSQL with six migrations passes;
+  browser run 443 checks, 0 problems (now confirms email from the outbox and resets a password end to end).

@@ -57,7 +57,7 @@ async function visit(page, path, label, { shot = true } = {}) {
 }
 const SHOT_OK = (shot) => Boolean(SHOTS && shot);
 
-const MARKETING = ["/", "/pricing", "/about", "/safety", "/privacy", "/terms", "/support", "/login", "/register"];
+const MARKETING = ["/", "/pricing", "/about", "/safety", "/privacy", "/terms", "/support", "/login", "/register", "/forgot-password"];
 const MEMBER = ["/dashboard", "/companion", "/companion/settings", "/memories", "/discover", "/live", "/introductions", "/messages", "/connections", "/circles", "/gatherings", "/events", "/graph", "/profile", "/settings", "/settings/privacy", "/membership", "/notifications", "/help"];
 const ADMIN = ["/admin", "/admin/users", "/admin/signals", "/admin/matching", "/admin/introductions", "/admin/circles", "/admin/gatherings", "/admin/moderation", "/admin/subscriptions", "/admin/analytics", "/admin/flags", "/admin/audit"];
 
@@ -132,6 +132,14 @@ try {
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/journey-onboarding-privacy.png`, fullPage: true });
   await page.click("text=Finish and meet my companion");
   await page.waitForURL("**/companion**");
+
+  // Email verification via the development outbox (demo mode has no email provider).
+  ok(await page.locator("text=Please confirm your email address").first().isVisible(), "unverified members see a confirmation banner");
+  await page.goto(BASE + "/dev/outbox", { waitUntil: "networkidle" });
+  await page.locator(`li:has-text("${email}") a[href*="/verify-email"]`).first().click();
+  await page.waitForSelector("text=Email confirmed");
+  await page.goto(BASE + "/companion", { waitUntil: "networkidle" });
+  ok((await page.locator("text=Please confirm your email address").count()) === 0, "banner disappears once confirmed");
   ok(await page.locator("text=Willow").first().isVisible(), "companion should use the chosen name");
   ok(await page.locator("text=Simulated companion").first().isVisible(), "simulated AI must be labelled");
 
@@ -247,6 +255,42 @@ try {
   await page.locator("#mobile-menu a:has-text('Circles')").click();
   await page.waitForURL("**/circles");
 
+  // Password reset from a signed-out browser, via the outbox.
+  {
+    const other = await browser.newContext();
+    const p2 = await other.newPage();
+    watch(p2, "reset");
+    await p2.goto(BASE + "/forgot-password");
+    await p2.fill('input[name="email"]', email);
+    await p2.click("button:has-text('Send reset link')");
+    await p2.waitForSelector("text=If there's a BELONG account for that email");
+    await p2.goto(BASE + "/forgot-password");
+    await p2.fill('input[name="email"]', "nobody-at-all@example.test");
+    await p2.click("button:has-text('Send reset link')");
+    await p2.waitForSelector("text=If there's a BELONG account for that email");
+    ok(true, "same answer for unknown emails");
+    await p2.goto(BASE + "/dev/outbox", { waitUntil: "networkidle" });
+    ok((await p2.locator("li:has-text('nobody-at-all@example.test')").count()) === 0, "no email is sent for unknown accounts");
+    await p2.locator(`li:has-text("${email}") a[href*="/reset-password"]`).first().click();
+    await p2.fill('input[name="password"]', "a-newer-test-password");
+    await p2.fill('input[name="confirm"]', "a-newer-test-password");
+    await p2.click("button:has-text('Save new password')");
+    await p2.waitForURL("**/login?reset=1");
+    await p2.fill('input[name="email"]', email);
+    await p2.fill('input[name="password"]', "a-newer-test-password");
+    await p2.click("form button[type=submit]:has-text('Sign in')");
+    await p2.waitForURL("**/dashboard");
+    ok(true, "password reset works end to end");
+    await other.close();
+  }
+  // The reset signed out the original browser too.
+  await page.goto(BASE + "/dashboard", { waitUntil: "networkidle" });
+  ok(new URL(page.url()).pathname === "/login", "resetting a password signs out other sessions");
+  await page.fill('input[name="email"]', email);
+  await page.fill('input[name="password"]', "a-newer-test-password");
+  await page.click("form button[type=submit]:has-text('Sign in')");
+  await page.waitForURL("**/dashboard");
+
   // Data export and account deletion
   await page.setViewportSize({ width: 1280, height: 860 });
   const exp = await ctx.request.get(BASE + "/api/account/export");
@@ -255,7 +299,7 @@ try {
   ok(!JSON.stringify(data).includes("password_hash"), "data export must not include the password hash");
   await page.goto(BASE + "/settings/privacy");
   await page.click("text=Delete my account…");
-  await page.fill('input[name="password"]', "a-long-test-password");
+  await page.fill('input[name="password"]', "a-newer-test-password");
   await page.fill('input[name="confirm"]', "DELETE");
   await page.click("button:has-text('Permanently delete everything')");
   await page.waitForURL("**/?deleted=1");

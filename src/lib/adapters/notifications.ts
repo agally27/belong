@@ -20,22 +20,50 @@ export interface PushProvider {
   send(userId: string, n: OutboundNotification): Promise<void>;
 }
 
-/** Development outbox: nothing leaves the machine. */
-export const devOutbox: { to: string; subject: string; text: string }[] = [];
+export interface OutboxEmail {
+  to: string;
+  subject: string;
+  text: string;
+  sentAt: string;
+}
 
-const consoleEmail: EmailProvider = {
+/** Development outbox: nothing leaves the machine. Shared across module copies within the process. */
+const g = globalThis as unknown as { __belongOutbox?: OutboxEmail[] };
+export const devOutbox: OutboxEmail[] = (g.__belongOutbox ??= []);
+
+const outboxEmail: EmailProvider = {
   name: "dev-outbox",
   async send(msg) {
-    devOutbox.push(msg);
-    if (devOutbox.length > 200) devOutbox.shift();
+    devOutbox.unshift({ ...msg, sentAt: new Date().toISOString() });
+    if (devOutbox.length > 200) devOutbox.pop();
   },
 };
 
+/**
+ * Resend (resend.com) over its HTTP API. Activated by EMAIL_PROVIDER=resend with
+ * EMAIL_API_KEY and EMAIL_FROM. Written against Resend's documented API but not
+ * yet tested with a live key — see INTEGRATION_CHECKLIST.md.
+ */
+const resendEmail: EmailProvider = {
+  name: "resend",
+  async send(msg) {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.EMAIL_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: process.env.EMAIL_FROM, to: [msg.to], subject: msg.subject, text: msg.text }),
+    });
+    if (!res.ok) throw new Error(`Resend responded ${res.status}`);
+  },
+};
+
+/** True when real email delivery is configured. */
+export const emailConfigured = () => process.env.EMAIL_PROVIDER === "resend" && Boolean(process.env.EMAIL_API_KEY && process.env.EMAIL_FROM);
+
 const noopPush: PushProvider = { name: "none", async send() {} };
 
-/** Integration point: return a Resend/Postmark/SES implementation when EMAIL_API_KEY is set. */
+/** Resend when configured; otherwise the local development outbox. Other providers can be added here. */
 export function getEmailProvider(): EmailProvider {
-  return consoleEmail;
+  return emailConfigured() ? resendEmail : outboxEmail;
 }
 
 /** Integration point: return a web-push/FCM/OneSignal implementation when PUSH_API_KEY is set. */

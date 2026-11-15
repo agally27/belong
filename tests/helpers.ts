@@ -40,6 +40,9 @@ export async function makeMember(
     ageConfirmed: true,
     termsAccepted: true,
   });
+  // Test members have confirmed their email (verification itself is tested separately).
+  const { getDb } = await import("@/lib/db");
+  await (await getDb()).run("UPDATE users SET email_verified_at = created_at WHERE id = ?", [user.id]);
   const consents =
     opts.consents === "none"
       ? []

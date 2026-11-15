@@ -13,7 +13,8 @@ export const env = {
   aiProvider: () => (process.env.ANTHROPIC_API_KEY && process.env.BELONG_AI_PROVIDER !== "mock" ? "claude" : "mock"),
   claudeModel: () => process.env.BELONG_CLAUDE_MODEL ?? "claude-opus-5-5",
   paymentsProvider: () => (process.env.STRIPE_SECRET_KEY ? "stripe" : "mock"),
-  appUrl: () => process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+  /** Public base URL used in emails. APP_URL is read at runtime; NEXT_PUBLIC_APP_URL is fixed at build time. */
+  appUrl: () => (process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, ""),
 };
 
 export interface PlanLimits {

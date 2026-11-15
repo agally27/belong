@@ -208,10 +208,27 @@ try {
   await page.locator("button:has-text(\"I'll be there\")").first().click();
   await page.waitForSelector("text=In your diary");
   await visit(page, "/membership", "journey", { shot: false });
-  page.once("dialog", (d) => d.accept());
   await page.locator("button:has-text('Upgrade to Premium')").click();
   await page.waitForSelector("button:has-text('Cancel membership')");
   ok(await page.locator("text=Simulated payments").first().isVisible(), "simulated payments must be labelled");
+
+  // Host tools: Premium can host an event, then edit and cancel it.
+  await page.goto(BASE + "/events", { waitUntil: "networkidle" });
+  await page.click("summary:has-text('Host an event')");
+  await page.fill('input[name="title"]', "Sunday sketch walk");
+  await page.selectOption('select[name="topic"]', "painting");
+  const when = new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10) + "T10:00";
+  await page.fill('input[name="startsAt"]', when);
+  await page.click("button:has-text('Publish event')");
+  await page.waitForURL(/\/events\/[0-9a-f-]{36}$/);
+  ok(/10:00/.test(await page.locator("body").innerText()), "an event picked for 10:00 shows as 10:00 UK time");
+  await page.fill('input[name="title"]', "Sunday sketch and coffee walk");
+  await page.click("button:has-text('Save changes')");
+  await page.waitForSelector("text=Event updated");
+  page.once("dialog", (d) => d.accept());
+  await page.click("button:has-text('Cancel event')");
+  await page.waitForURL("**/events?cancelled=1");
+  ok(!/Sunday sketch and coffee walk/.test(await page.locator("main").innerText()), "a cancelled event leaves the listings");
 
   // A member may not open the admin console or another member's conversation.
   await page.goto(BASE + "/admin", { waitUntil: "networkidle" });

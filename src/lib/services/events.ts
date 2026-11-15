@@ -3,7 +3,7 @@ import { getDb, json, now, uid } from "../db";
 import { TOPICS, topicLabel } from "../matching/topics";
 import { taxonomyMatcher } from "../matching/semantic";
 import { mockConnectionIdeas } from "../ai/mock";
-import { AppError, audit, flag, forbidden, notFound } from "./core";
+import { AppError, audit, flag, forbidden, notFound, notify } from "./core";
 import { getLimits } from "./subscriptions";
 
 export interface EventView {
@@ -24,6 +24,7 @@ export interface EventView {
   circleId: string | null;
   circleName: string | null;
   fit: string | null;
+  cancelled: boolean;
 }
 
 type EventRow = {
@@ -39,6 +40,7 @@ type EventRow = {
   circle_id: string | null;
   host_name: string | null;
   circle_name: string | null;
+  status: string;
 };
 
 const SELECT = `SELECT e.*, p.display_name AS host_name, c.name AS circle_name
@@ -72,6 +74,7 @@ async function view(userId: string, rows: EventRow[]): Promise<EventView[]> {
       circleId: r.circle_id,
       circleName: r.circle_name,
       fit: best && best.s >= 0.5 ? `Because you enjoy ${topicLabel(best.t)}` : null,
+      cancelled: r.status === "cancelled",
     });
   }
   return out;
@@ -79,7 +82,7 @@ async function view(userId: string, rows: EventRow[]): Promise<EventView[]> {
 
 export async function listEvents(userId: string): Promise<EventView[]> {
   const db = await getDb();
-  const rows = await db.all<EventRow>(`${SELECT} WHERE e.starts_at > ? ORDER BY e.starts_at`, [now()]);
+  const rows = await db.all<EventRow>(`${SELECT} WHERE e.starts_at > ? AND e.status != 'cancelled' ORDER BY e.starts_at`, [now()]);
   return view(userId, rows);
 }
 
@@ -126,6 +129,7 @@ export async function setRsvp(userId: string, eventId: string, going: boolean) {
   const db = await getDb();
   const ev = await getEvent(userId, eventId);
   if (!ev) throw notFound("That event isn't available.");
+  if (ev.cancelled) throw new AppError("This event has been cancelled.", "conflict");
   if (!going) {
     await db.run("DELETE FROM event_rsvps WHERE event_id = ? AND user_id = ?", [eventId, userId]);
     return;
@@ -144,4 +148,45 @@ export async function suggestedActivities(userId: string): Promise<{ topic: stri
     const ideas = mockConnectionIdeas({ theirFirstName: "", sharedTopics: [topic], reasons: [] }).activities;
     return { topic, label: topicLabel(topic), idea: ideas[i % ideas.length] };
   });
+}
+
+async function ownEvent(hostId: string, eventId: string) {
+  const db = await getDb();
+  const row = await db.get<{ id: string; host_id: string | null; title: string; status: string; starts_at: string }>("SELECT id, host_id, title, status, starts_at FROM events WHERE id = ?", [eventId]);
+  if (!row) throw notFound("That event isn't available.");
+  if (row.host_id !== hostId) throw forbidden("Only the host can change this event.");
+  if (row.status === "cancelled") throw new AppError("This event has already been cancelled.", "conflict");
+  return row;
+}
+
+async function attendees(eventId: string, exceptId: string): Promise<string[]> {
+  const db = await getDb();
+  return (await db.all<{ user_id: string }>("SELECT user_id FROM event_rsvps WHERE event_id = ? AND status = 'going' AND user_id != ?", [eventId, exceptId])).map((r) => r.user_id);
+}
+
+export const eventUpdateSchema = eventSchema.pick({ title: true, description: true, area: true, startsAt: true, capacity: true });
+
+/** Host edits the details. Everyone going is told what changed (when and where only). */
+export async function updateEvent(hostId: string, eventId: string, input: z.input<typeof eventUpdateSchema>) {
+  const before = await ownEvent(hostId, eventId);
+  const d = eventUpdateSchema.parse(input);
+  const db = await getDb();
+  const going = await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM event_rsvps WHERE event_id = ? AND status = 'going'", [eventId]);
+  if (d.capacity < Number(going?.n ?? 0)) throw new AppError(`${Number(going?.n)} people are already going, so the event can't be smaller than that.`);
+  const startsAt = new Date(d.startsAt).toISOString();
+  await db.run("UPDATE events SET title = ?, description = ?, area = ?, starts_at = ?, capacity = ? WHERE id = ?", [d.title, d.description, d.area || null, startsAt, d.capacity, eventId]);
+  await audit(hostId, "event.updated", "event", eventId);
+  const moved = startsAt !== before.starts_at;
+  for (const u of await attendees(eventId, hostId)) {
+    await notify(u, "event", `Updated: ${d.title}`, moved ? "The host has changed the date or time. Check it still works for you." : "The host has updated the details.", `/events/${eventId}`);
+  }
+}
+
+/** Host cancels. Everyone going is told; the event disappears from listings. */
+export async function cancelEvent(hostId: string, eventId: string) {
+  const ev = await ownEvent(hostId, eventId);
+  const db = await getDb();
+  await db.run("UPDATE events SET status = 'cancelled' WHERE id = ?", [eventId]);
+  await audit(hostId, "event.cancelled", "event", eventId);
+  for (const u of await attendees(eventId, hostId)) await notify(u, "event", `Cancelled: ${ev.title}`, "The host has had to cancel. Sorry for the change of plan.", "/events");
 }

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarPlus, MapPin, MessageCircle } from "lucide-react";
-import { createEventAction, joinCircleAction, leaveCircleAction } from "@/app/actions";
+import { createEventAction, joinCircleAction, leaveCircleAction, removeCircleMemberAction } from "@/app/actions";
 import { ActionButton, ActionForm, SubmitButton } from "@/components/forms";
 import { Avatar, Badge, Card, DemoBadge, Field, LinkButton, Notice, SectionTitle, formatDateTime } from "@/components/ui";
 import { getCircle } from "@/lib/services/circles";
@@ -79,6 +79,17 @@ export default async function CirclePage({ params }: { params: Promise<{ id: str
                     <span className="block truncate text-xs text-ink-500">{m.area}</span>
                   </span>
                   {m.host && <Badge tone="sage">Host</Badge>}
+                  {circle.isHost && m.id !== user.id && (
+                    <ActionButton
+                      action={removeCircleMemberAction}
+                      fields={{ circleId: id, memberId: m.id }}
+                      variant="ghost"
+                      confirm={`Remove ${m.name} from ${circle.name}? They'll be told kindly and won't be able to rejoin. If someone has made you feel unsafe, please also report them from their profile.`}
+                      ariaLabel={`Remove ${m.name}`}
+                    >
+                      Remove
+                    </ActionButton>
+                  )}
                   {m.isDemo && m.id !== user.id && <DemoBadge />}
                 </li>
               ))}

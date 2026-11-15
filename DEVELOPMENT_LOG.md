@@ -83,3 +83,11 @@ thank-you could show; cards now stay on screen with the acknowledgement.
 
 **Tests** — new `tests/admin-tuning.test.ts` (7) and `tests/feedback.test.ts` (5). Total 93 passed, 1 skipped;
 PostgreSQL journey passes with all three migrations; browser run 421 checks, 0 problems.
+
+**Later in session 2**
+- Simulated companion negation handling (D-037).
+- Host tools: remove a Circle member; edit or cancel an event (migration `0004_host_tools.sql`).
+- Bug found and fixed: times picked in a date picker were read as UTC, so summer events were saved an hour late
+  (`src/lib/time.ts`, D-040).
+- Tests: 98 passed, 1 skipped; PostgreSQL journey passes with all four migrations; browser run 423 checks, 0 problems
+  (now includes hosting, editing and cancelling an event, and the after-meeting feedback card).

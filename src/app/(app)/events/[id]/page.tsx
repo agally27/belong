@@ -2,14 +2,24 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Clock, MapPin, Users, Video } from "lucide-react";
-import { rsvpAction } from "@/app/actions";
-import { ActionButton } from "@/components/forms";
-import { Badge, Card, Notice, formatDateTime } from "@/components/ui";
+import { cancelEventAction, rsvpAction, updateEventAction } from "@/app/actions";
+import { ActionButton, ActionForm, SubmitButton } from "@/components/forms";
+import { Badge, Card, Field, Notice, formatDateTime } from "@/components/ui";
 import { flag } from "@/lib/services/core";
 import { getEvent } from "@/lib/services/events";
 import { requireMember } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Event" };
+
+/** ISO → value for a datetime-local input, in UK time. */
+function toLocalInput(iso: string) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-GB", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Europe/London" })
+      .formatToParts(new Date(iso))
+      .map((p) => [p.type, p.value]),
+  );
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
 
 export default async function EventPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireMember();
@@ -63,6 +73,11 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
         </dl>
         {e.description && <p className="mt-5 text-ink-700">{e.description}</p>}
         {e.fit && <p className="mt-3 text-sm font-medium text-lavender-600">{e.fit}</p>}
+        {e.cancelled ? (
+          <Notice tone="rose" className="mt-6">
+            This event has been cancelled by the host.
+          </Notice>
+        ) : (
         <div className="mt-6">
           {e.iAmGoing ? (
             e.iAmHost ? (
@@ -80,7 +95,40 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
             </ActionButton>
           )}
         </div>
+        )}
       </Card>
+      {e.iAmHost && !e.cancelled && (
+        <Card>
+          <h2 className="text-xl text-charcoal">Host tools</h2>
+          <p className="mt-1 text-sm text-ink-500">Everyone going is told when you change the date, time or details, or cancel.</p>
+          <ActionForm action={updateEventAction} className="mt-4 space-y-3">
+            <input type="hidden" name="id" value={e.id} />
+            <Field label="Title">
+              <input name="title" defaultValue={e.title} className="field text-sm" required minLength={4} maxLength={80} />
+            </Field>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field label="When">
+                <input type="datetime-local" name="startsAt" defaultValue={toLocalInput(e.startsAt)} className="field text-sm" required />
+              </Field>
+              <Field label="General area">
+                <input name="area" defaultValue={e.area ?? ""} className="field text-sm" maxLength={60} />
+              </Field>
+              <Field label="Places">
+                <input type="number" name="capacity" min={Math.max(2, e.going)} max={30} defaultValue={e.capacity} className="field text-sm" />
+              </Field>
+            </div>
+            <Field label="Details">
+              <textarea name="description" rows={3} maxLength={600} defaultValue={e.description} className="field text-sm" />
+            </Field>
+            <SubmitButton size="sm">Save changes</SubmitButton>
+          </ActionForm>
+          <div className="mt-5 border-t border-sand/70 pt-4">
+            <ActionButton action={cancelEventAction} fields={{ id: e.id }} variant="danger" confirm="Cancel this event? Everyone going will be told.">
+              Cancel event
+            </ActionButton>
+          </div>
+        </Card>
+      )}
       <Notice tone="sage">
         <strong>Meeting safely.</strong> BELONG shows a general area only. Agree the exact meeting point with the host, choose somewhere public, and tell someone you trust where you&apos;ll be.
       </Notice>

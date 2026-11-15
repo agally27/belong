@@ -378,3 +378,60 @@ describe("demo seed", () => {
     }),
   );
 });
+
+describe("host tools", () => {
+  it(
+    "a Circle host can remove someone, who is told kindly and cannot rejoin",
+    inDb(async () => {
+      const host = await makeMember("Host", { interests: ["hiking"] });
+      const id = await createCircle(host, { name: "Walkers", topic: "hiking", capacity: 5 });
+      const m = await makeMember("Mo", { interests: ["hiking"] });
+      const other = await makeMember("Ola", { interests: ["hiking"] });
+      await joinCircle(m, id);
+      await joinCircle(other, id);
+      const { removeMember } = await import("@/lib/services/circles");
+      await expect(removeMember(other, id, m)).rejects.toThrow(/Only the host/);
+      await expect(removeMember(host, id, host)).rejects.toThrow(/leave the Circle/);
+      await removeMember(host, id, m);
+      expect((await getCircle(host, id))!.members.map((x) => x.name).sort()).toEqual(["Host", "Ola"]);
+      expect((await listNotifications(m)).some((n) => /no longer part of Walkers/.test(n.title))).toBe(true);
+      await expect(joinCircle(m, id)).rejects.toThrow(/isn't available/);
+      await expect(sendMessage(m, (await getCircle(host, id))!.conversationId!, "hi")).rejects.toThrow();
+    }),
+  );
+
+  it(
+    "an event host can edit or cancel; attendees are told; others can't",
+    inDb(async () => {
+      const host = await makeMember("Host");
+      await applyPlan(host, "plus", "mock", null);
+      const soon = new Date(Date.now() + 3 * 86400000).toISOString();
+      const id = await createEvent(host, { title: "Morning walk", topic: "hiking", startsAt: soon, capacity: 4 });
+      const guest = await makeMember("Guest");
+      const g2 = await makeMember("Gee");
+      await setRsvp(guest, id, true);
+      await setRsvp(g2, id, true);
+      const { updateEvent, cancelEvent, getEvent } = await import("@/lib/services/events");
+      await expect(updateEvent(guest, id, { title: "Hijack", startsAt: soon, capacity: 4 })).rejects.toThrow(/Only the host/);
+      await expect(updateEvent(host, id, { title: "Morning walk", startsAt: soon, capacity: 2 })).rejects.toThrow(/can't be smaller/);
+      const later = new Date(Date.now() + 5 * 86400000).toISOString();
+      await updateEvent(host, id, { title: "Longer morning walk", startsAt: later, capacity: 6, area: "Leigh Woods" });
+      expect((await getEvent(guest, id))!.title).toBe("Longer morning walk");
+      expect((await listNotifications(guest)).some((n) => /date or time/.test(n.body))).toBe(true);
+      await expect(cancelEvent(guest, id)).rejects.toThrow(/Only the host/);
+      await cancelEvent(host, id);
+      expect((await getEvent(guest, id))!.cancelled).toBe(true);
+      expect((await listEvents(guest)).map((e) => e.id)).not.toContain(id);
+      expect((await listNotifications(g2)).some((n) => /^Cancelled/.test(n.title))).toBe(true);
+      await expect(setRsvp(guest, id, true)).rejects.toThrow(/cancelled/);
+      await expect(cancelEvent(host, id)).rejects.toThrow(/already been cancelled/);
+    }),
+  );
+
+  it("reads date-picker times as UK time", async () => {
+    const { londonToIso } = await import("@/lib/time");
+    expect(londonToIso("2026-07-04T10:00")).toBe("2026-07-04T09:00:00.000Z");
+    expect(londonToIso("2026-12-05T10:00")).toBe("2026-12-05T10:00:00.000Z");
+    expect(londonToIso("2026-12-05T10:00:00.000Z")).toBe("2026-12-05T10:00:00.000Z");
+  });
+});

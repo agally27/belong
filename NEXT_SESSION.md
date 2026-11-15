@@ -44,12 +44,10 @@ Done 2026-11-15: task 0 (admin tuning, gatherings admin, allowance check, UK-tim
 learning from responses (D-032–D-036). Remaining ideas not built: reciprocity scoring, bridge introductions
 between friend groups, life-stage signals, conversation-style signals (needs live AI).
 
-1. **Host tools**: let a Circle host remove a member, and an event host edit or cancel an event
-   (`services/circles.ts`, `services/events.ts`, their pages, tests in `tests/workflow.test.ts`).
+1. ~~Host tools~~ — done 2026-11-15.
 2. **Pagination** for messages, notifications and admin tables; batch the per-row queries in
    `listConversations`, `circles.view` and `events.view`.
-3. **Negation handling** in the simulated companion (`src/lib/ai/mock.ts`): don't propose memories for
-   "I don't like / hate / can't stand X". Add tests.
+3. ~~Negation handling~~ — done 2026-11-15.
 4. **Password reset and email verification** behind the email adapter, using the dev outbox locally.
 5. **Content-Security-Policy** header in `next.config.ts`, verified with `scripts/e2e.mjs`.
 6. Wire `scripts/e2e.mjs` into CI.

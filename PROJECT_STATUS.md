@@ -5,8 +5,8 @@ _Last updated: 2026-11-15 · admin tuning, feedback loop and learning added_
 ## Summary
 
 All 27 modules in the specification are built and working locally with no external credentials.
-Verified by: 93 automated tests, a real-browser run of the whole member journey plus every page at desktop and
-phone widths (421 checks), a clean lint/typecheck/production build, and the seeded journey on PostgreSQL 16.
+Verified by: 98 automated tests, a real-browser run of the whole member journey plus every page at desktop and
+phone widths (423 checks), a clean lint/typecheck/production build, and the seeded journey on PostgreSQL 16.
 
 **Not done, by design:** production services (database hosting, Claude key, Stripe, email, push, maps, storage,
 domain, deployment). **Nothing has been deployed.**
@@ -51,8 +51,8 @@ domain, deployment). **Nothing has been deployed.**
 
 **AI**
 - The Claude adapter compiles against the current SDK but has never been run against the live API.
-- The simulated companion is keyword-based: it only recognises topics in the taxonomy (~50 topics) and can
-  misread negations ("I don't like hiking" would still propose a hiking memory — the member can decline it).
+- The simulated companion is keyword-based: it only recognises topics in the taxonomy (~50 topics). Simple
+  negations are handled clause by clause; sarcasm and complex phrasing are not.
 - Companion replies are not streamed.
 
 **Local matching and gatherings (added 2026-11-14)**
@@ -77,7 +77,6 @@ domain, deployment). **Nothing has been deployed.**
 
 **Messaging and community**
 - Messages appear on page load/submit, not in real time. No typing indicators, attachments or read receipts.
-- Circle hosts cannot remove members; events cannot be edited or cancelled after creation.
 - Ending a connection or leaving a Circle is immediate with no undo (blocks can be undone).
 
 **Commercial**

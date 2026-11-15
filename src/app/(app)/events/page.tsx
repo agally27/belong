@@ -69,8 +69,9 @@ function EventCard({ e }: { e: EventView }) {
   );
 }
 
-export default async function EventsPage() {
+export default async function EventsPage({ searchParams }: { searchParams: Promise<{ cancelled?: string }> }) {
   const user = await requireMember();
+  const { cancelled } = await searchParams;
   if (!(await flag("events"))) notFound();
   const [events, limits, ideas] = [await listEvents(user.id), await getLimits(user.id), await suggestedActivities(user.id)];
   const mine = events.filter((e) => e.iAmGoing);
@@ -128,6 +129,7 @@ export default async function EventsPage() {
           )
         }
       />
+      {cancelled && <Notice tone="sage">Your event has been cancelled and everyone going has been told.</Notice>}
       {!limits.hostEvents && <Notice tone="lavender">On the free membership you can join any event and plan events inside your Circles. Hosting open events is part of BELONG Plus.</Notice>}
 
       {mine.length > 0 && (

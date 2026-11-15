@@ -12,6 +12,7 @@ import * as auth from "@/lib/services/auth";
 import * as circles from "@/lib/services/circles";
 import * as companion from "@/lib/services/companion";
 import { AppError, setConsent, track } from "@/lib/services/core";
+import { londonToIso } from "@/lib/time";
 import * as events from "@/lib/services/events";
 import * as feedback from "@/lib/services/feedback";
 import * as gatherings from "@/lib/services/gatherings";
@@ -29,6 +30,7 @@ import * as subs from "@/lib/services/subscriptions";
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 const bool = (f: FormData, k: string) => ["on", "true", "1", "yes"].includes(String(f.get(k) ?? ""));
 const list = (f: FormData, k: string) => f.getAll(k).map(String).filter(Boolean);
+
 
 function fail(e: unknown): ActionState {
   if (e instanceof AppError) return { error: e.message };
@@ -427,7 +429,7 @@ export async function createEventAction(_: ActionState, f: FormData): Promise<Ac
       topic: str(f, "topic"),
       area: str(f, "area"),
       format: (str(f, "format") || "in_person") as never,
-      startsAt: str(f, "startsAt"),
+      startsAt: londonToIso(str(f, "startsAt")),
       capacity: Number(f.get("capacity") ?? 8),
       circleId: str(f, "circleId") || undefined,
     });
@@ -436,6 +438,36 @@ export async function createEventAction(_: ActionState, f: FormData): Promise<Ac
   }
   revalidatePath("/", "layout");
   redirect(`/events/${id}`);
+}
+
+export async function removeCircleMemberAction(_: ActionState, f: FormData): Promise<ActionState> {
+  const user = await requireUser();
+  return run(() => circles.removeMember(user.id, str(f, "circleId"), str(f, "memberId")));
+}
+
+export async function updateEventAction(_: ActionState, f: FormData): Promise<ActionState> {
+  const user = await requireUser();
+  return run(async () => {
+    await events.updateEvent(user.id, str(f, "id"), {
+      title: str(f, "title"),
+      description: str(f, "description"),
+      area: str(f, "area"),
+      startsAt: londonToIso(str(f, "startsAt")),
+      capacity: Number(f.get("capacity") ?? 8),
+    });
+    return "Event updated. Everyone going has been told.";
+  });
+}
+
+export async function cancelEventAction(_: ActionState, f: FormData): Promise<ActionState> {
+  const user = await requireUser();
+  try {
+    await events.cancelEvent(user.id, str(f, "id"));
+  } catch (e) {
+    return fail(e);
+  }
+  revalidatePath("/", "layout");
+  redirect("/events?cancelled=1");
 }
 
 export async function rsvpAction(_: ActionState, f: FormData): Promise<ActionState> {

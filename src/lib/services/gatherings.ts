@@ -1,10 +1,11 @@
-import { getDb, now, pair, uid } from "../db";
+import { getDb, json, now, pair, uid } from "../db";
 import { mockConnectionIdeas } from "../ai/mock";
 import { milesBetween } from "../geo";
 import { SLOT_LABEL } from "../matching/engine";
 import { topicLabel, TOPICS } from "../matching/topics";
 import { AppError, audit, flag, forbidden, notFound, notify } from "./core";
 import { previewsById, type MemberPreview } from "./members";
+import { taxonomyMatcher } from "../matching/semantic";
 import { networkContexts, networkSignals } from "./signals";
 
 /**
@@ -32,7 +33,10 @@ type GatheringRow = {
   status: string;
   circle_id: string | null;
   reminded_at: string | null;
+  bridge: string | null;
 };
+
+type Bridge = { a: string; b: string; names: [string, string] };
 
 const SLOT_HOUR: Record<string, number> = { mornings: 10, afternoons: 14, evenings: 19 };
 
@@ -54,6 +58,29 @@ export function nextSlotDate(slot: string, from = new Date(), leadDays = 3): Dat
 
 const ENERGY = ["quiet-evening", "easy-going", "high-energy"];
 
+/** Activity ideas are written for two people; reword them for a group. */
+const forGroup = (idea: string) => idea.replace(/neither of you/gi, "none of you").replace(/ as a team of two/gi, " as a team");
+
+/** "user|startsAt" for every upcoming gathering someone has been invited to and not declined. */
+async function bookedTimes(): Promise<Set<string>> {
+  const db = await getDb();
+  const rows = await db.all<{ user_id: string; starts_at: string }>(
+    "SELECT i.user_id, g.starts_at FROM gathering_invites i JOIN gatherings g ON g.id = i.gathering_id WHERE i.status != 'declined' AND g.status IN ('proposed', 'confirmed') AND g.starts_at > ?",
+    [now()],
+  );
+  return new Set(rows.map((r) => `${r.user_id}|${r.starts_at}`));
+}
+
+/** The first of the next few weeks' dates for a slot when the people can all make it (nobody double-booked). */
+function firstFreeDate(slot: string, people: string[], booked: Set<string>, ok: (free: string[]) => boolean): { starts: Date; free: string[] } | null {
+  for (let week = 0; week < 3; week++) {
+    const starts = nextSlotDate(slot, new Date(Date.now() + week * 7 * 86400000));
+    const free = people.filter((u) => !booked.has(`${u}|${starts.toISOString()}`));
+    if (ok(free)) return { starts, free };
+  }
+  return null;
+}
+
 /** Looks for clusters of compatible members and proposes gatherings. Returns how many were created. */
 export async function proposeGatherings(opts: { quiet?: boolean } = {}): Promise<number> {
   if (!(await flag("gatherings"))) return 0;
@@ -61,13 +88,14 @@ export async function proposeGatherings(opts: { quiet?: boolean } = {}): Promise
   const [byUser, contexts] = [await networkSignals(), await networkContexts()];
   const ts = now();
 
-  const open = await db.all<{ user_id: string; topic: string }>(
-    "SELECT i.user_id, g.topic FROM gathering_invites i JOIN gatherings g ON g.id = i.gathering_id WHERE g.status IN ('proposed', 'confirmed') AND g.starts_at > ?",
+  const open = await db.all<{ user_id: string; topic: string; bridge: string | null }>(
+    "SELECT i.user_id, g.topic, g.bridge FROM gathering_invites i JOIN gatherings g ON g.id = i.gathering_id WHERE g.status IN ('proposed', 'confirmed') AND g.starts_at > ?",
     [ts],
   );
   const hasTopic = new Set(open.map((o) => `${o.user_id}|${o.topic}`));
+  // At most two open suggestions per person. Bridges don't count: they're about a Circle you're already in.
   const openCount = new Map<string, number>();
-  for (const o of open) openCount.set(o.user_id, (openCount.get(o.user_id) ?? 0) + 1);
+  for (const o of open) if (!o.bridge) openCount.set(o.user_id, (openCount.get(o.user_id) ?? 0) + 1);
   const blocks = new Set((await db.all<{ blocker_id: string; blocked_id: string }>("SELECT blocker_id, blocked_id FROM blocks")).map((b) => pair(b.blocker_id, b.blocked_id).join("|")));
   const friends = new Set((await db.all<{ user_a: string; user_b: string }>("SELECT user_a, user_b FROM connections WHERE status = 'active'")).map((c) => `${c.user_a}|${c.user_b}`));
   const key = (a: string, b: string) => pair(a, b).join("|");
@@ -99,6 +127,7 @@ export async function proposeGatherings(opts: { quiet?: boolean } = {}): Promise
 
   let created = 0;
   const placed = new Set<string>(); // at most one new proposal per member per run
+  const booked = await bookedTimes();
   for (const [topic, all] of [...byTopic.entries()].sort((x, y) => y[1].length - x[1].length)) {
     const pool = all.filter((p) => !placed.has(p.id) && !hasTopic.has(`${p.id}|${topic}`));
     if (pool.length < GATHERING_MIN) continue;
@@ -131,23 +160,29 @@ export async function proposeGatherings(opts: { quiet?: boolean } = {}): Promise
     if (group.length < GATHERING_MIN || !slots.length) continue;
 
     const slot = slots[0];
-    const starts = nextSlotDate(slot);
+    // Never double-book anyone: move to a later week if needed, or drop people who are busy.
+    const when = firstFreeDate(slot, group.map((p) => p.id), booked, (free) => free.length >= GATHERING_MIN);
+    if (!when) continue;
+    const starts = when.starts;
+    const freeIds = new Set(when.free);
+    const invitees = group.filter((p) => freeIds.has(p.id));
     const respondBy = new Date(Math.min(Date.now() + 4 * 86400000, starts.getTime() - 86400000));
-    const idea = mockConnectionIdeas({ theirFirstName: "", sharedTopics: [topic], reasons: [] }).activities[0];
+    const idea = forGroup(mockConnectionIdeas({ theirFirstName: "", sharedTopics: [topic], reasons: [] }).activities[0]);
     const id = uid();
     await db.run(
       "INSERT INTO gatherings (id, topic, title, area, slot, starts_at, respond_by, min_size, max_size, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'proposed', ?)",
       [id, topic, idea, contexts.get(seed.id)?.town ?? null, slot, starts.toISOString(), respondBy.toISOString(), GATHERING_MIN, GATHERING_MAX, ts],
     );
-    for (const p of group) {
+    for (const p of invitees) {
+      booked.add(`${p.id}|${starts.toISOString()}`);
       placed.add(p.id);
       const reason = p.topics.get(topic) ? `You said you'd like ${topicLabel(topic)} company` : `Because you enjoy ${topicLabel(topic)}`;
       await db.run("INSERT INTO gathering_invites (gathering_id, user_id, status, reason, created_at) VALUES (?, ?, 'invited', ?, ?)", [id, p.id, reason, ts]);
       if (!opts.quiet) {
-        await notify(p.id, "gathering", "Your companion has an idea", `A small ${topicLabel(topic)} get-together with ${group.length - 1} others nearby. Interested?`, "/gatherings");
+        await notify(p.id, "gathering", "Your companion has an idea", `A small ${topicLabel(topic)} get-together with ${invitees.length - 1} others nearby. Interested?`, "/gatherings");
       }
     }
-    await audit(null, "gathering.proposed", "gathering", id, { topic, invited: group.length });
+    await audit(null, "gathering.proposed", "gathering", id, { topic, invited: invitees.length });
     created++;
   }
   return created;
@@ -165,6 +200,14 @@ export async function sweepGatherings(): Promise<void> {
     await db.run("UPDATE gatherings SET reminded_at = ? WHERE id = ?", [ts, g.id]);
     for (const u of await accepted(g.id)) await notify(u, "gathering", "Tomorrow: " + g.title, "A reminder about your get-together. Check the group chat for the meeting point.", "/gatherings");
   }
+}
+
+/** Enough yeses? Ordinary gatherings need min_size; bridges need at least two from each Circle. */
+async function enough(g: GatheringRow): Promise<boolean> {
+  const db = await getDb();
+  const rows = await db.all<{ side: string | null }>("SELECT side FROM gathering_invites WHERE gathering_id = ? AND status = 'accepted'", [g.id]);
+  if (!g.bridge) return rows.length >= Number(g.min_size);
+  return rows.filter((r) => r.side === "a").length >= 2 && rows.filter((r) => r.side === "b").length >= 2;
 }
 
 async function accepted(gatheringId: string): Promise<string[]> {
@@ -190,8 +233,9 @@ export async function respondToGathering(userId: string, gatheringId: string, ac
     if (accept && !going.includes(userId) && going.length >= Number(g.max_size)) throw new AppError("This gathering is now full.", "conflict");
     await db.run("UPDATE gathering_invites SET status = ?, responded_at = ? WHERE gathering_id = ? AND user_id = ?", [accept ? "accepted" : "declined", now(), gatheringId, userId]);
     const after = await accepted(gatheringId);
+    const isEnough = await enough(g);
     let status = g.status;
-    if (g.status === "proposed" && after.length >= Number(g.min_size)) {
+    if (g.status === "proposed" && isEnough) {
       status = "confirmed";
       await db.run("UPDATE gatherings SET status = 'confirmed' WHERE id = ?", [gatheringId]);
       if (!(await db.get("SELECT id FROM conversations WHERE gathering_id = ?", [gatheringId]))) {
@@ -200,7 +244,7 @@ export async function respondToGathering(userId: string, gatheringId: string, ac
       for (const u of after) await notify(u, "gathering", "It's happening: " + g.title, "Enough people said yes. You can now see who's coming and agree a meeting point in the group chat.", "/gatherings");
     } else if (g.status === "confirmed" && accept && !going.includes(userId)) {
       for (const u of going) await notify(u, "gathering", "Someone else is joining", g.title, "/gatherings");
-    } else if (g.status === "confirmed" && after.length < Number(g.min_size)) {
+    } else if (g.status === "confirmed" && !isEnough) {
       status = "proposed";
       await db.run("UPDATE gatherings SET status = 'proposed' WHERE id = ?", [gatheringId]);
       for (const u of after) await notify(u, "gathering", "Your get-together needs one more", "Someone can't make it. It will go ahead again as soon as another person says yes.", "/gatherings");
@@ -230,14 +274,16 @@ export interface GatheringView {
   canBecomeCircle: boolean;
   /** Demo only: fictional invitees who haven't answered. */
   demoWaiting: number;
+  /** Set when this is a get-together between two Circles. */
+  bridge: { mine: string; other: string } | null;
 }
 
 export async function listGatherings(userId: string): Promise<GatheringView[]> {
   if (!(await flag("gatherings"))) return [];
   await sweepGatherings();
   const db = await getDb();
-  const rows = await db.all<GatheringRow & { my_status: string; reason: string }>(
-    `SELECT g.*, i.status AS my_status, i.reason FROM gathering_invites i JOIN gatherings g ON g.id = i.gathering_id
+  const rows = await db.all<GatheringRow & { my_status: string; reason: string; side: string | null }>(
+    `SELECT g.*, i.status AS my_status, i.reason, i.side FROM gathering_invites i JOIN gatherings g ON g.id = i.gathering_id
      WHERE i.user_id = ? AND i.status != 'declined' AND g.status IN ('proposed', 'confirmed', 'completed') ORDER BY g.starts_at`,
     [userId],
   );
@@ -274,8 +320,14 @@ export async function listGatherings(userId: string): Promise<GatheringView[]> {
       members: [...previews.values()],
       conversationId: conv?.id ?? null,
       circleId: g.circle_id,
-      canBecomeCircle: reveal && !g.circle_id && going.length >= 3,
+      canBecomeCircle: reveal && !g.circle_id && !g.bridge && going.length >= 3,
       demoWaiting: invites.filter((i) => i.is_demo && i.status === "invited" && i.user_id !== userId).length,
+      bridge: (() => {
+        if (!g.bridge) return null;
+        const b = json<Bridge | null>(g.bridge, null);
+        if (!b) return null;
+        return g.side === "a" ? { mine: b.names[0], other: b.names[1] } : { mine: b.names[1], other: b.names[0] };
+      })(),
     });
   }
   return out;
@@ -340,4 +392,118 @@ export async function simulateDemoGathering(actorId: string, gatheringId: string
   // Most say yes; with a larger group one politely can't make it, as in real life.
   for (const [i, w] of waiting.entries()) await respondToGathering(w.user_id, gatheringId, !(waiting.length > 3 && i === waiting.length - 1));
   await audit(actorId, "demo.simulated_gathering", "gathering", gatheringId);
+}
+
+const BRIDGE_COOLDOWN_DAYS = 60;
+
+/**
+ * Bridges between friend groups. When two Circles with no members in common are
+ * nearby and share (or neighbour) an interest, propose one joint get-together.
+ * Same rules as any gathering — individual opt-in, names hidden until it's
+ * confirmed — and it goes ahead only if at least two people from EACH Circle say yes.
+ */
+export async function proposeBridges(opts: { quiet?: boolean } = {}): Promise<number> {
+  if (!(await flag("gatherings"))) return 0;
+  const db = await getDb();
+  const [byUser, contexts] = [await networkSignals(), await networkContexts()];
+  const circles = await db.all<{ id: string; name: string; topic: string }>("SELECT id, name, topic FROM circles WHERE status = 'open'");
+  const membersOf = new Map<string, string[]>();
+  for (const c of circles) {
+    membersOf.set(c.id, (await db.all<{ user_id: string }>("SELECT user_id FROM circle_members WHERE circle_id = ?", [c.id])).map((r) => r.user_id));
+  }
+  const ready = circles.filter((c) => (membersOf.get(c.id)?.length ?? 0) >= 3);
+
+  const recent = await db.all<{ bridge: string; status: string; created_at: string }>("SELECT bridge, status, created_at FROM gatherings WHERE bridge IS NOT NULL");
+  const busy = new Set<string>();
+  const cooled = new Set<string>();
+  const cutoff = new Date(Date.now() - BRIDGE_COOLDOWN_DAYS * 86400000).toISOString();
+  for (const r of recent) {
+    const b = json<Bridge | null>(r.bridge, null);
+    if (!b) continue;
+    if (["proposed", "confirmed"].includes(r.status)) [b.a, b.b].forEach((x) => busy.add(x));
+    if (r.created_at > cutoff) cooled.add(pair(b.a, b.b).join("|"));
+  }
+  const blocks = new Set((await db.all<{ blocker_id: string; blocked_id: string }>("SELECT blocker_id, blocked_id FROM blocks")).map((b) => pair(b.blocker_id, b.blocked_id).join("|")));
+  const slotsOf = (u: string) => (byUser.get(u) ?? []).filter((s) => s.kind === "availability").map((s) => s.topic.slice(2));
+  const booked = await bookedTimes();
+  const reach = (u: string, v: string) => {
+    const [cu, cv] = [contexts.get(u), contexts.get(v)];
+    if (!cu?.point || !cv?.point) return false;
+    return milesBetween(cu.point, cv.point) <= Math.min(cu.radiusMiles ?? 10, cv.radiusMiles ?? 10);
+  };
+
+  let created = 0;
+  for (let i = 0; i < ready.length; i++) {
+    for (let j = i + 1; j < ready.length; j++) {
+      const [c1, c2] = [ready[i], ready[j]];
+      if (busy.has(c1.id) || busy.has(c2.id) || cooled.has(pair(c1.id, c2.id).join("|"))) continue;
+      if (taxonomyMatcher.similarity(c1.topic, c2.topic) < 0.5) continue;
+      const [m1, m2] = [membersOf.get(c1.id)!, membersOf.get(c2.id)!];
+      if (m1.some((u) => m2.includes(u))) continue; // already connected through a shared member
+
+      // Who could come: opted in, has an area and free time, and within reach of most of the other group.
+      const eligible = (mine: string[], theirs: string[]) =>
+        mine.filter((u) => {
+          const ctx = contexts.get(u);
+          if (!ctx?.groupsOk || !ctx.point || !slotsOf(u).length) return false;
+          return theirs.filter((v) => reach(u, v)).length * 2 >= theirs.length;
+        });
+      let a = eligible(m1, m2);
+      let b = eligible(m2, m1);
+      // Nobody is invited alongside someone they've blocked, or who has blocked them.
+      const clash = new Set<string>();
+      for (const u of a) for (const v of b) if (blocks.has(pair(u, v).join("|"))) [u, v].forEach((x) => clash.add(x));
+      a = a.filter((u) => !clash.has(u));
+      b = b.filter((u) => !clash.has(u));
+
+      // The free slot that suits the most people on both sides.
+      const slots = [...new Set([...a, ...b].flatMap(slotsOf))];
+      const scored = slots
+        .map((s) => ({ s, na: a.filter((u) => slotsOf(u).includes(s)).length, nb: b.filter((u) => slotsOf(u).includes(s)).length }))
+        .filter((x) => x.na >= 2 && x.nb >= 2)
+        .sort((x, y) => Math.min(y.na, y.nb) - Math.min(x.na, x.nb) || y.na + y.nb - (x.na + x.nb));
+      if (!scored.length) continue;
+      const slot = scored[0].s;
+      a = a.filter((u) => slotsOf(u).includes(slot));
+      b = b.filter((u) => slotsOf(u).includes(slot));
+      const when = firstFreeDate(slot, [...a, ...b], booked, (free) => free.filter((u) => a.includes(u)).length >= 2 && free.filter((u) => b.includes(u)).length >= 2);
+      if (!when) continue;
+      a = a.filter((u) => when.free.includes(u));
+      b = b.filter((u) => when.free.includes(u));
+
+      const starts = when.starts;
+      const respondBy = new Date(Math.min(Date.now() + 4 * 86400000, starts.getTime() - 86400000));
+      // An idea that suits both groups, worded as a joint get-together.
+      const ideas = mockConnectionIdeas({ theirFirstName: "", sharedTopics: [c1.topic, c2.topic], reasons: [] }).activities;
+      const idea = `Joint meet-up: ${forGroup(ideas[1] ?? ideas[0]).replace(/^[A-Z]/, (ch) => ch.toLowerCase())}`;
+      const id = uid();
+      const ts = now();
+      const bridge: Bridge = { a: c1.id, b: c2.id, names: [c1.name, c2.name] };
+      await db.run(
+        "INSERT INTO gatherings (id, topic, title, area, slot, starts_at, respond_by, min_size, max_size, status, bridge, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 4, ?, 'proposed', ?, ?)",
+        [id, c1.topic, idea, contexts.get(a[0])?.town ?? null, slot, starts.toISOString(), respondBy.toISOString(), Math.min(16, a.length + b.length), JSON.stringify(bridge), ts],
+      );
+      for (const [side, list, own, other] of [
+        ["a", a, c1, c2],
+        ["b", b, c2, c1],
+      ] as const) {
+        const reason =
+          own.topic === other.topic
+            ? `Your Circle ${own.name} and ${other.name} both love ${topicLabel(own.topic)}`
+            : `Your Circle ${own.name} (${topicLabel(own.topic)}) and ${other.name} (${topicLabel(other.topic)}) have neighbouring interests`;
+        for (const u of list) {
+          await db.run("INSERT INTO gathering_invites (gathering_id, user_id, status, reason, side, created_at) VALUES (?, ?, 'invited', ?, ?, ?)", [id, u, reason, side, ts]);
+          if (!opts.quiet) {
+            await notify(u, "gathering", "Two Circles, one get-together", `${own.name} and ${other.name}, a nearby Circle with a lot in common, could meet up. Interested?`, "/gatherings");
+          }
+        }
+      }
+      busy.add(c1.id);
+      busy.add(c2.id);
+      for (const u of [...a, ...b]) booked.add(`${u}|${starts.toISOString()}`);
+      await audit(null, "gathering.bridge_proposed", "gathering", id, { invited: a.length + b.length });
+      created++;
+    }
+  }
+  return created;
 }

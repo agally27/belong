@@ -40,14 +40,21 @@ function GatheringCard({ g, demo }: { g: GatheringView; demo: boolean }) {
           <Users size={15} /> You and {others} {others === 1 ? "other" : "others"} invited · {g.going} said yes
         </span>
       </p>
+      {g.bridge && (
+        <p className="mt-3 flex flex-wrap items-center gap-2 text-sm font-medium text-sage-700">
+          <Badge tone="sage">Two Circles</Badge> {g.bridge.mine} meets {g.bridge.other}
+        </p>
+      )}
       <p className="mt-3 rounded-xl bg-ivory px-4 py-3 text-sm text-ink-700">
-        {g.reason}. Everyone invited shares this interest, lives within reach, and is usually free on {g.slotLabel}.
+        {g.bridge
+          ? `${g.reason}. A relaxed way for two groups to meet — everyone invited lives within reach and is usually free on ${g.slotLabel}.`
+          : `${g.reason}. Everyone invited shares this interest, lives within reach, and is usually free on ${g.slotLabel}.`}
       </p>
 
       {g.status === "proposed" && (
         <>
           <p className="mt-3 text-xs text-ink-500">
-            {need > 0 ? `Goes ahead once ${need} more ${need === 1 ? "person says" : "people say"} yes` : "Enough people have said yes"} · answer by {formatDateTime(g.respondBy)} · you&apos;ll see who&apos;s coming once it&apos;s confirmed and you&apos;ve said yes.
+            {g.bridge ? "Goes ahead once at least two people from each Circle say yes" : need > 0 ? `Goes ahead once ${need} more ${need === 1 ? "person says" : "people say"} yes` : "Enough people have said yes"} · answer by {formatDateTime(g.respondBy)} · you&apos;ll see who&apos;s coming once it&apos;s confirmed and you&apos;ve said yes.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             {g.myStatus === "invited" ? (

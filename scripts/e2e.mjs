@@ -120,6 +120,7 @@ try {
   // 3. Social style
   await page.click("label.chip-toggle:has-text('in small groups')");
   await page.click("label.chip-toggle:has-text('Weekend mornings')");
+  await page.click("label.chip-toggle:has-text('New to the area')");
   await page.click("label.chip-toggle:has-text('New friends')");
   await page.click("text=Continue");
   // 4. Companion
@@ -272,6 +273,9 @@ try {
     await p.click("button:has-text('Explore as Alex')");
     await p.waitForURL("**/dashboard");
     for (const path of ["/dashboard", "/discover", "/live", "/introductions", "/graph", "/memories", "/circles"]) await visit(p, path, "alex");
+    const gath = await visit(p, "/gatherings", "alex");
+    ok(/Sunday Walkers meets Southville Dog Walkers/.test(gath), "Alex should be offered a bridge between two Circles");
+    ok(/at least two people from each Circle/.test(gath), "bridge rules are explained");
     await p.goto(BASE + "/dashboard", { waitUntil: "networkidle" });
     ok(await p.locator("text=How's it going with Eleanor?").first().isVisible(), "a private feedback question should appear after a few days");
     await p.locator("button:has-text('We met — it was great')").first().click();

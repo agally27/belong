@@ -1,12 +1,12 @@
 # Project status
 
-_Last updated: 2026-11-15 · admin tuning, feedback loop and learning added_
+_Last updated: 2026-11-15 · life stages, reciprocity and bridges added_
 
 ## Summary
 
 All 27 modules in the specification are built and working locally with no external credentials.
-Verified by: 98 automated tests, a real-browser run of the whole member journey plus every page at desktop and
-phone widths (423 checks), a clean lint/typecheck/production build, and the seeded journey on PostgreSQL 16.
+Verified by: 111 automated tests, a real-browser run of the whole member journey plus every page at desktop and
+phone widths (429 checks), a clean lint/typecheck/production build, and the seeded journey on PostgreSQL 16.
 
 **Not done, by design:** production services (database hosting, Claude key, Stripe, email, push, maps, storage,
 domain, deployment). **Nothing has been deployed.**
@@ -65,6 +65,9 @@ domain, deployment). **Nothing has been deployed.**
 - The factor sizes are reasoned starting points, not tuned on real behaviour. They are adjustable in
   Admin → Matching, and the "How meetings went" chart in Admin → Analytics is the measure to tune against.
 - Learning needs volume: with a handful of responses its effect is deliberately tiny.
+- Reciprocity and learning have no effect until real members have answered introductions; they cannot be
+  meaningfully evaluated on demo data.
+- Bridges only connect Circles, not informal friend clusters in the connection graph.
 - Feedback prompts appear on the dashboard only (no email/push reminder until those providers exist).
 
 **Matching and network**

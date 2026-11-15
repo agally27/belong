@@ -25,7 +25,23 @@ export interface Topic {
   keywords: string[];
   related?: string[];
   complements?: string[];
+  /** A life stage rather than an interest: chosen separately, never shown as an interest. */
+  stage?: boolean;
+  /** How a shared life stage is described to both members, e.g. "You're both new to the area". */
+  phrase?: string;
 }
+
+/** Life stages: shared circumstances often bond people faster than shared hobbies. */
+const stage = (id: string, label: string, phrase: string, keywords: string[], related: string[] = []): Topic => ({
+  id,
+  label,
+  category: "life",
+  keywords,
+  related,
+  complements: [],
+  stage: true,
+  phrase,
+});
 
 const t = (
   id: string,
@@ -85,9 +101,18 @@ export const TOPIC_LIST: Topic[] = [
   t("startups", "starting something", "work", ["startup", "start-up", "small business", "freelance", "side hustle", "co-founder"], ["coding", "design"]),
   t("travel", "travel", "life", ["travel", "travelling", "backpacking", "interrail", "city break"], ["languages", "photography"]),
   t("dogs", "dogs", "life", ["dog", "dogs", "dog walk", "puppy"], ["hiking"]),
-  t("parenting", "parenting", "life", ["parenting", "new parent", "toddler", "school run", "my kids", "my daughter", "my son"], []),
-  t("new-in-town", "being new in town", "life", ["new in town", "just moved", "recently moved", "new to the city", "new to the area", "don't know many people", "don't know anyone"], []),
+  stage("new-in-town", "new to the area", "You're both new to the area", ["new in town", "just moved", "recently moved", "new to the city", "new to the area", "moved here", "don't know many people", "don't know anyone"]),
+  stage("parenting", "parent of young children", "You're both parents of young children", ["parenting", "new parent", "new mum", "new dad", "toddler", "school run", "my kids", "my daughter", "my son", "became a parent", "maternity leave", "paternity leave"]),
+  stage("empty-nest", "children recently left home", "Your children have both recently flown the nest", ["empty nest", "kids have left home", "children have left home", "kids left home"], ["parenting"]),
+  stage("retirement", "recently retired", "You've both recently retired", ["retired", "retirement", "just retired", "recently retired"]),
+  stage("career-change", "changing career", "You're both changing career", ["career change", "changed career", "changing career", "retraining", "new career"]),
+  stage("studying", "studying", "You're both studying", ["student", "studying", "at university", "at uni", "mature student", "doing a degree", "masters", "phd"]),
+  stage("remote-work", "working from home", "You both work from home", ["work from home", "working from home", "wfh", "remote work", "work remotely"]),
 ];
+
+/** Topics offered as interests (life stages are chosen separately). */
+export const INTEREST_TOPICS = TOPIC_LIST.filter((x) => !x.stage);
+export const LIFE_STAGES = TOPIC_LIST.filter((x) => x.stage);
 
 export const TOPICS: Record<string, Topic> = Object.fromEntries(TOPIC_LIST.map((x) => [x.id, x]));
 

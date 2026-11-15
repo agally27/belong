@@ -126,6 +126,9 @@ matcher today, `embeddingMatcher()` when an embeddings provider is configured.
 | Learning from responses | ±10%: leans toward topics and dimensions a member has said yes to, away from those they dismissed. | That member's own past responses |
 | After-meeting feedback | ±15%: leans toward topics that led to good meetings for that member. | Private "How did it go?" answers |
 
+| Shared life stage | ×1.3 on a shared stage (new to the area, new parents, recently retired…), with its own wording. | Stages the member picked, with `share_life_stage` consent |
+| Both likely to say yes | ±10%, using the less responsive of the two. Never explained. | How each member has answered introductions they were asked about |
+
 Every factor's strength is adjustable in Admin → Matching (0 off, 1 default, 2 double). Reasons based on a member's
 own learned preferences are shown only to that member.
 
@@ -140,6 +143,10 @@ It favours a familiar face and a mix of quieter and livelier people, then propos
 next date for that slot. Each person opts in; invitees are hidden until at least three accept, at which point a
 group chat opens. Unanswered proposals lapse; drop-outs below the minimum pause it; day-before reminders are sent;
 a successful gathering can become a Circle. Route: `/gatherings`.
+
+**Bridges** connect two existing Circles (friend groups) that have no members in common, are nearby and share or
+neighbour an interest: one joint get-together, which goes ahead only if at least two people from each Circle say yes.
+Nobody is double-booked: proposals move to a later week rather than clash.
 
 The network run (`runNetwork`) skips blocked and already-connected pairs, retires suggestions that fall below
 threshold or whose members withdrew, never re-suggests declined pairs, and sends at most one notification per

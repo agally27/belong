@@ -4,6 +4,7 @@ import { districtPoint } from "../geo";
 import { hashPassword } from "../services/auth";
 import { requestIntroduction, respondToIntroduction } from "../services/introductions";
 import { createIntention, createMemory } from "../services/memory";
+import { proposeBridges } from "../services/gatherings";
 import { runNetwork } from "../services/network";
 import { syncSignals } from "../services/signals";
 
@@ -216,6 +217,19 @@ export async function seedDemo(db: Db) {
       [uidv, m.name, m.pronouns, m.age, m.bio, m.area, "South West England", m.hue, JSON.stringify(m.interests), JSON.stringify(m.values), JSON.stringify(m.personality), JSON.stringify(m.lookingFor), joined],
     );
     const [district, radius, online, free] = WHERE[m.key];
+    // Life stages each fictional member chose to share.
+    const STAGES: Record<string, string[]> = {
+      alex: ["new-in-town"],
+      eleanor: ["new-in-town", "empty-nest"],
+      jamal: ["new-in-town", "studying"],
+      george: ["retirement"],
+      hannah: ["parenting"],
+      ravi: ["parenting"],
+      daniel: ["remote-work"],
+      sofia: ["remote-work"],
+      aisha: ["career-change"],
+    };
+    await db.run("UPDATE profiles SET life_stages = ? WHERE user_id = ?", [JSON.stringify(STAGES[m.key] ?? []), uidv]);
     const point = districtPoint(district)!;
     await db.run("UPDATE profiles SET district = ?, lat = ?, lng = ?, radius_miles = ?, online_ok = ?, availability = ? WHERE user_id = ?", [district, point.lat, point.lng, radius, online ? 1 : 0, JSON.stringify(free), uidv]);
     await db.run("INSERT INTO companions (user_id, name, tone, style, proactivity, created_at, updated_at) VALUES (?, ?, ?, ?, 'balanced', ?, ?)", [uidv, m.companion[0], m.companion[1], m.companion[2], joined, joined]);
@@ -305,6 +319,10 @@ export async function seedDemo(db: Db) {
   await circle("Kitchen Table Supper Club", "We take turns cooking something we love. Small, warm, and very well fed.", "cooking", "North Bristol", 6, "sofia", ["priya", "hannah", "george"], 4, [["sofia", "Next up: handmade pasta at mine. Bring an apron!"]]);
   await circle("Words & Pictures", "Writers and illustrators sharing work in progress over coffee.", "writing", "Bristol & Bath", 6, "aisha", ["mei", "eleanor"], 3, [["aisha", "Bring a page or a sketch on Thursday — no pressure for it to be finished."]]);
   await circle("Slow Mornings", "Gentle yoga and a quiet coffee afterwards. Babies and beginners very welcome.", "yoga", "North Bristol", 5, "hannah", ["priya"], 2, []);
+  await circle("Southville Dog Walkers", "Morning laps of the park with our dogs (and anyone who'd like to borrow one).", "dogs", "South Bristol", 6, "eleanor", ["sofia", "kwame"], 3, [
+    ["eleanor", "Biscuit says hello to everyone. Saturday 9am by the bandstand?"],
+    ["sofia", "We'll be there!"],
+  ]);
 
   // Events — general areas only.
   const event = async (title: string, description: string, topic: string, area: string, format: string, days: number, hour: number, capacity: number, host: string, circleId: string | null, going: string[]) => {
@@ -320,6 +338,9 @@ export async function seedDemo(db: Db) {
   await event("Beginners' sketching afternoon", "Bring a pencil and a sketchbook. Mei will share a few simple exercises.", "painting", "Bath", "in_person", 9, 14, 6, "mei", null, ["aisha"]);
   await event("Stargazing on the Downs", "Weather permitting. Ravi is bringing a telescope and a flask.", "astronomy", "The Downs, Bristol", "in_person", 12, 20, 10, "ravi", null, []);
   await event("Online: first-chapter swap", "Share the first page of something you're writing and hear kind, useful feedback.", "writing", "Online", "online", 7, 19, 8, "aisha", null, ["mei"]);
+
+  // Now that Circles exist, the network can spot groups that would enjoy meeting each other.
+  await proposeBridges({ quiet: true });
 
   // Alex's companion conversation so far.
   const alex = ids.alex;

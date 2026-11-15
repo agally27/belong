@@ -15,6 +15,8 @@ const FACTORS = [
   ["mutuals", "Friends of friends", "Having connections in common helps."],
   ["history", "Learning from responses", "Leans toward the kinds of suggestion each member tends to accept, and away from those they dismiss."],
   ["feedback", "After-meeting feedback", "Leans toward topics that led to good meetings for that member."],
+  ["lifeStage", "Shared life stage", "Extra weight when two people are at the same point in life — new to the area, new parents, recently retired."],
+  ["reciprocity", "Both likely to say yes", "Favours pairs where both people tend to respond to introductions. Based on responsiveness, not popularity."],
 ] as const;
 
 export const metadata: Metadata = { title: "Matching" };

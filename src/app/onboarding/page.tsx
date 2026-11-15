@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Logo } from "@/components/ui";
 import { CONSENTS } from "@/lib/config";
-import { TOPIC_LIST } from "@/lib/matching/topics";
+import { INTEREST_TOPICS, LIFE_STAGES } from "@/lib/matching/topics";
 import { getCompanion, getProfile } from "@/lib/services/profile";
 import { requireUser } from "@/lib/session";
 import { OnboardingWizard } from "./wizard";
@@ -22,7 +22,8 @@ export default async function OnboardingPage() {
           <OnboardingWizard
             initialName={profile?.displayName ?? ""}
             companionName={companion.name}
-            topics={TOPIC_LIST.map((t) => ({ id: t.id, label: t.label, category: t.category }))}
+            topics={INTEREST_TOPICS.map((t) => ({ id: t.id, label: t.label, category: t.category }))}
+            stages={LIFE_STAGES.map((t) => ({ id: t.id, label: t.label }))}
             consents={CONSENTS.map((c) => ({ key: c.key, title: c.title, description: c.description, group: c.group, recommended: c.default }))}
           />
         </main>

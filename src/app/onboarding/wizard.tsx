@@ -19,7 +19,7 @@ const STEPS = ["About you", "What you love", "How you like to meet", "Your compa
 type Topic = { id: string; label: string; category: string };
 type Consent = { key: string; title: string; description: string; group: string; recommended: boolean };
 
-export function OnboardingWizard({ initialName, companionName, topics, consents }: { initialName: string; companionName: string; topics: Topic[]; consents: Consent[] }) {
+export function OnboardingWizard({ initialName, companionName, topics, stages, consents }: { initialName: string; companionName: string; topics: Topic[]; stages: { id: string; label: string }[]; consents: Consent[] }) {
   const [step, setStep] = useState(0);
   const [state, formAction, pending] = useActionState(completeOnboardingAction, {});
   const [interests, setInterests] = useState<string[]>([]);
@@ -155,6 +155,17 @@ export function OnboardingWizard({ initialName, companionName, topics, consents 
               <label key={value} className="chip-toggle">
                 <input type="checkbox" name="availability" value={value} className="sr-only" />
                 {label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend className="mb-2 text-sm font-medium text-ink-700">Where are you in life right now? (optional, up to three)</legend>
+          <div className="flex flex-wrap gap-2">
+            {stages.map((t) => (
+              <label key={t.id} className="chip-toggle">
+                <input type="checkbox" name="lifeStages" value={t.id} className="sr-only" />
+                {t.label[0].toUpperCase() + t.label.slice(1)}
               </label>
             ))}
           </div>

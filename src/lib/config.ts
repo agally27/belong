@@ -105,6 +105,7 @@ export type ConsentKey =
   | "share_personality"
   | "share_area"
   | "share_availability"
+  | "share_life_stage"
   | "mutual_connections"
   | "group_suggestions"
   | "companion_memory"
@@ -166,6 +167,13 @@ export const CONSENTS: { key: ConsentKey; title: string; description: string; gr
     key: "share_availability",
     title: "Share when I'm usually free",
     description: "Broad slots only, such as “weekend mornings”, so plans can suit everyone. Never your calendar.",
+    group: "Agent network",
+    default: true,
+  },
+  {
+    key: "share_life_stage",
+    title: "Share my stage of life",
+    description: "Only the stages you pick on your profile, such as “new to the area” or “recently retired”. Never inferred from what you say.",
     group: "Agent network",
     default: true,
   },

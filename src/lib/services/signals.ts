@@ -80,10 +80,15 @@ async function desiredSignals(userId: string): Promise<Desired[]> {
   );
   if (!user || user.status !== "active" || !user.onboarded_at || !consent.matching_enabled) return [];
   const out: Desired[] = [];
-  const profile = await db.get<{ interests: string; personality: string; availability: string }>(
-    "SELECT interests, personality, availability FROM profiles WHERE user_id = ?",
+  const profile = await db.get<{ interests: string; personality: string; availability: string; life_stages: string }>(
+    "SELECT interests, personality, availability, life_stages FROM profiles WHERE user_id = ?",
     [userId],
   );
+  if (profile && consent.share_life_stage) {
+    for (const topic of json<string[]>(profile.life_stages, [])) {
+      out.push({ kind: "experience", topic, label: topicLabel(topic), strength: 0.8, sourceType: "profile", sourceId: null, temporary: false, expiresAt: null });
+    }
+  }
   if (profile && consent.share_availability) {
     for (const slot of json<string[]>(profile.availability, [])) {
       if (!SLOT_LABEL[slot]) continue;

@@ -4,7 +4,7 @@ import { ActionForm, SubmitButton } from "@/components/forms";
 import { Avatar, Card, Field, PageHeader } from "@/components/ui";
 import { AVAILABILITY_SLOTS, PERSONALITY } from "@/lib/config";
 import { RADIUS_OPTIONS } from "@/lib/geo";
-import { TOPIC_LIST } from "@/lib/matching/topics";
+import { INTEREST_TOPICS, LIFE_STAGES } from "@/lib/matching/topics";
 import { AGE_RANGES, getProfile, LOOKING_FOR } from "@/lib/services/profile";
 import { requireMember } from "@/lib/session";
 
@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Profile" };
 export default async function ProfilePage() {
   const user = await requireMember();
   const p = (await getProfile(user.id))!;
-  const categories = [...new Set(TOPIC_LIST.map((t) => t.category))];
+  const categories = [...new Set(INTEREST_TOPICS.map((t) => t.category))];
   return (
     <div className="max-w-3xl">
       <PageHeader eyebrow="You" title="Your profile" description="This is what people see once your companions have suggested you to each other — a first name, your general area, and what you choose to write here. Nothing more." />
@@ -95,7 +95,7 @@ export default async function ProfilePage() {
             <fieldset key={c}>
               <legend className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-500">{c}</legend>
               <div className="flex flex-wrap gap-2">
-                {TOPIC_LIST.filter((t) => t.category === c).map((t) => (
+                {INTEREST_TOPICS.filter((t) => t.category === c).map((t) => (
                   <label key={t.id} className="chip-toggle capitalize">
                     <input type="checkbox" name="interests" value={t.id} defaultChecked={p.interests.includes(t.id)} className="sr-only" />
                     {t.label}
@@ -121,6 +121,18 @@ export default async function ProfilePage() {
               </div>
             </fieldset>
           ))}
+          <fieldset>
+            <legend className="mb-2 text-sm font-medium text-ink-700">Where are you in life right now? (optional, up to three)</legend>
+            <div className="flex flex-wrap gap-2">
+              {LIFE_STAGES.map((t) => (
+                <label key={t.id} className="chip-toggle">
+                  <input type="checkbox" name="lifeStages" value={t.id} defaultChecked={p.lifeStages.includes(t.id)} className="sr-only" />
+                  {t.label[0].toUpperCase() + t.label.slice(1)}
+                </label>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-ink-500">People at the same stage often click quickly. Shared only if you allow it, and only the stages you pick here.</p>
+          </fieldset>
           <fieldset>
             <legend className="mb-2 text-sm font-medium text-ink-700">I&apos;m hoping to find…</legend>
             <div className="flex flex-wrap gap-2">

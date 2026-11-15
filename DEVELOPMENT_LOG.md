@@ -91,3 +91,12 @@ PostgreSQL journey passes with all three migrations; browser run 421 checks, 0 p
   (`src/lib/time.ts`, D-040).
 - Tests: 98 passed, 1 skipped; PostgreSQL journey passes with all four migrations; browser run 423 checks, 0 problems
   (now includes hosting, editing and cancelling an event, and the after-meeting feedback card).
+
+**Matching ideas (owner asked for these before account/security work)**
+- Life stages (migration `0005`): profile and onboarding choices, consent, signals, phrasing, adjustable weight.
+- Reciprocity: `likelyYes()` in `services/feedback.ts`, adjustable "Both likely to say yes" factor.
+- Bridges: `proposeBridges()` in `services/gatherings.ts`, run with every network run; side-aware confirmation;
+  "Two Circles" presentation; seeded "Southville Dog Walkers" so Alex sees a bridge with Sunday Walkers.
+- Fixes found by reviewing screenshots: double-booked gatherings (D-044), duplicate titles, pair wording in group titles.
+- Tests: `tests/matching-ideas.test.ts` (14). Total 111 passed, 1 skipped; PostgreSQL with five migrations passes;
+  browser run 429 checks, 0 problems.

@@ -24,6 +24,7 @@ export interface Profile {
   radiusMiles: number;
   onlineOk: boolean;
   availability: string[];
+  lifeStages: string[];
 }
 
 type ProfileRow = {
@@ -43,6 +44,7 @@ type ProfileRow = {
   radius_miles: number;
   online_ok: number;
   availability: string;
+  life_stages: string;
 };
 
 export const toProfile = (r: ProfileRow): Profile => ({
@@ -62,6 +64,7 @@ export const toProfile = (r: ProfileRow): Profile => ({
   radiusMiles: Number(r.radius_miles ?? 10),
   onlineOk: Boolean(r.online_ok),
   availability: json<string[]>(r.availability, []),
+  lifeStages: json<string[]>(r.life_stages, []),
 });
 
 export async function getProfile(userId: string): Promise<Profile | null> {
@@ -111,6 +114,7 @@ export const profileSchema = z.object({
   radiusMiles: z.coerce.number().refine((n) => (RADIUS_OPTIONS as readonly number[]).includes(n), "Choose a distance.").default(10),
   onlineOk: z.boolean().default(false),
   availability: z.array(z.enum(Object.keys(AVAILABILITY_SLOTS) as [string, ...string[]])).default([]),
+  lifeStages: z.array(z.string()).max(3, "Choose up to three.").default([]),
 });
 
 export type ProfileInput = z.input<typeof profileSchema>;
@@ -123,7 +127,7 @@ export async function updateProfile(userId: string, input: ProfileInput) {
   const point = districtPoint(district);
   const db = await getDb();
   await db.run(
-    'UPDATE profiles SET display_name = ?, pronouns = ?, age_range = ?, bio = ?, area = ?, region = ?, interests = ?, "values" = ?, personality = ?, looking_for = ?, district = ?, lat = ?, lng = ?, radius_miles = ?, online_ok = ?, availability = ?, updated_at = ? WHERE user_id = ?',
+    'UPDATE profiles SET display_name = ?, pronouns = ?, age_range = ?, bio = ?, area = ?, region = ?, interests = ?, "values" = ?, personality = ?, looking_for = ?, district = ?, lat = ?, lng = ?, radius_miles = ?, online_ok = ?, availability = ?, life_stages = ?, updated_at = ? WHERE user_id = ?',
     [
       d.displayName,
       d.pronouns ?? null,
@@ -141,6 +145,7 @@ export async function updateProfile(userId: string, input: ProfileInput) {
       d.radiusMiles,
       d.onlineOk ? 1 : 0,
       JSON.stringify(d.availability),
+      JSON.stringify(d.lifeStages.filter((s) => TOPICS[s]?.stage)),
       now(),
       userId,
     ],

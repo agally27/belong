@@ -78,7 +78,7 @@ export default async function PrivacyPage() {
                     <p className="font-medium capitalize text-charcoal">{signalTopicLabel(s.topic)}</p>
                     <p className="flex flex-wrap items-center gap-2 text-xs text-ink-500">
                       <Badge tone={s.temporary ? "sky" : "lavender"}>
-                        {s.temporary && <Timer size={11} />} {KIND_LABEL[s.kind] ?? s.kind}
+                        {s.temporary && <Timer size={11} />} {s.kind === "experience" && s.sourceType === "profile" ? "Stage of life" : (KIND_LABEL[s.kind] ?? s.kind)}
                       </Badge>
                       {SOURCE_LABEL[s.sourceType]}
                       {s.expiresAt && <span>· expires {timeAgo(s.expiresAt)}</span>}

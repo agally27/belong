@@ -2,8 +2,8 @@ import { getDb, json, now, pair, uid } from "../db";
 import { computeMatch, reasonTexts, type MatchReason } from "../matching/engine";
 import { topicLabel } from "../matching/topics";
 import { audit, flag, forbidden, getWeights, notify } from "./core";
-import { learnedPreferences } from "./feedback";
-import { proposeGatherings, sweepGatherings } from "./gatherings";
+import { learnedPreferences, likelyYes } from "./feedback";
+import { proposeBridges, proposeGatherings, sweepGatherings } from "./gatherings";
 import { previewsById, type MemberPreview } from "./members";
 import { expireSignals, networkContexts, networkSignals, toMatchSignal } from "./signals";
 
@@ -50,6 +50,7 @@ export async function runNetwork(opts: { forUserId?: string; actorId?: string | 
   const ids = [...byUser.keys()].sort();
   const contexts = await networkContexts();
   const learned = await learnedPreferences();
+  const responsive = await likelyYes();
 
   // Rarity: sharing an unusual interest says more than sharing a very common one.
   const holders = new Map<string, number>();
@@ -110,6 +111,8 @@ export async function runNetwork(opts: { forUserId?: string; actorId?: string | 
         mutuals: mutualCount(a, b),
         learnedA: learned.get(a),
         learnedB: learned.get(b),
+        likelyYesA: responsive.get(a),
+        likelyYesB: responsive.get(b),
       });
       const prev = existing.get(key);
       if (m.score < weights.threshold || !m.reasons.length) {
@@ -162,7 +165,7 @@ export async function runNetwork(opts: { forUserId?: string; actorId?: string | 
 
   // Beyond pairs: look for small groups who could get together.
   await sweepGatherings();
-  result.gatheringsProposed = await proposeGatherings({ quiet: opts.quiet });
+  result.gatheringsProposed = (await proposeGatherings({ quiet: opts.quiet })) + (await proposeBridges({ quiet: opts.quiet }));
 
   await audit(opts.actorId ?? null, "network.run", "network", opts.forUserId ?? "all", { ...result });
   return result;

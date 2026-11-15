@@ -1,6 +1,6 @@
 import { distanceBand, milesBetween, type Point } from "../geo";
 import { areComplementary, taxonomyMatcher, type SemanticMatcher } from "./semantic";
-import { topicLabel } from "./topics";
+import { topicLabel, TOPICS } from "./topics";
 
 /**
  * BELONG matching engine — pure, deterministic and independent of any AI API.
@@ -42,6 +42,10 @@ export interface FactorStrengths {
   history: number;
   /** "How did it go?" feedback after meeting. */
   feedback: number;
+  /** Extra weight for a shared life stage (new to the area, new parents, recently retired…). */
+  lifeStage: number;
+  /** Favour pairs where both people are likely to say yes. */
+  reciprocity: number;
 }
 
 export interface MatchWeights {
@@ -52,7 +56,7 @@ export interface MatchWeights {
   factors?: Partial<FactorStrengths>;
 }
 
-export const DEFAULT_FACTORS: FactorStrengths = { distance: 1, rarity: 1, style: 1, timing: 1, mutuals: 1, history: 1, feedback: 1 };
+export const DEFAULT_FACTORS: FactorStrengths = { distance: 1, rarity: 1, style: 1, timing: 1, mutuals: 1, history: 1, feedback: 1, lifeStage: 1, reciprocity: 1 };
 export const DEFAULT_WEIGHTS: MatchWeights = { shared: 0.4, moments: 0.35, complementary: 0.25, threshold: 22, factors: DEFAULT_FACTORS };
 
 export const factorsOf = (w: MatchWeights): FactorStrengths => ({ ...DEFAULT_FACTORS, ...(w.factors ?? {}) });
@@ -83,6 +87,12 @@ export interface LearnedPreferences {
 export interface MatchOptions {
   learnedA?: LearnedPreferences;
   learnedB?: LearnedPreferences;
+  /**
+   * How likely each member is to say yes to an introduction, 0…1 (0.5 = unknown).
+   * Based on whether they respond, not on how often others pick them.
+   */
+  likelyYesA?: number;
+  likelyYesB?: number;
   a?: MemberContext;
   b?: MemberContext;
   /** Rarity weight for a topic: > 1 for unusual interests, < 1 for very common ones. */
@@ -200,11 +210,15 @@ export function computeMatch(
     if (bestIdx < 0 || best < 0.2) continue;
     usedB.add(bestIdx);
     best *= rar(a.topic);
-    shared += best;
     const b = dB[bestIdx];
+    const lifeStage = a.topic === b.topic ? TOPICS[a.topic]?.stage : false;
+    // A shared life stage tends to bond people faster than a shared hobby.
+    if (lifeStage) best *= 1 + 0.3 * factorsOf(weights).lifeStage;
+    shared += best;
     if (a.topic === b.topic) {
-      const text =
-        a.kind === "personality"
+      const text = lifeStage
+        ? TOPICS[a.topic].phrase!
+        : a.kind === "personality"
           ? `You're both ${topicLabel(a.topic)} people`
           : a.kind === "experience" && b.kind === "experience"
             ? `You've both been through ${a.label}`
@@ -412,6 +426,13 @@ export function computeMatch(
   const enjoyed = (f: number) => (f > 0.3 && firstTopic ? `Like people you've enjoyed meeting before through ${topicLabel(firstTopic)}` : "");
   if (k.feedback > 0 && (enjoyed(fa) || enjoyed(fb))) {
     extra.push({ dimension: "context", topics: [], text: enjoyed(fa), textB: enjoyed(fb), weight: 0 });
+  }
+
+  // Reciprocity: an introduction only happens if BOTH say yes, so favour pairs where both tend to respond.
+  // Uses the less likely of the two, bounded to ±10%, and never explained (it would reveal behaviour).
+  if (options.likelyYesA !== undefined || options.likelyYesB !== undefined) {
+    const both = Math.min(options.likelyYesA ?? 0.5, options.likelyYesB ?? 0.5);
+    multiplier *= Math.max(0.5, 1 + 0.2 * k.reciprocity * (both - 0.5));
   }
 
   const score = Math.round(Math.min(1, base * multiplier) * 100);

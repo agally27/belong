@@ -41,8 +41,8 @@ reciprocity scoring, "bridge" introductions between friend groups, admin control
 If the owner has given no other instruction, work down this list, one commit each, without waiting for credentials:
 
 Done 2026-11-15: task 0 (admin tuning, gatherings admin, allowance check, UK-time fix) and the feedback loop +
-learning from responses (D-032–D-036). Remaining ideas not built: reciprocity scoring, bridge introductions
-between friend groups, life-stage signals, conversation-style signals (needs live AI).
+learning from responses (D-032–D-036). Then, at the owner's request, the matching ideas: life stages, reciprocity and bridges between Circles
+(D-041–D-044). Still not built: conversation-style signals (needs the live AI).
 
 1. ~~Host tools~~ — done 2026-11-15.
 2. **Pagination** for messages, notifications and admin tables; batch the per-row queries in

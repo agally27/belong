@@ -165,3 +165,34 @@ export async function feedbackSummary() {
   const count = (met: string, rating?: string) => rows.filter((r) => r.met === met && (rating === undefined || r.rating === rating)).reduce((s, r) => s + Number(r.n), 0);
   return { met: count("yes"), great: count("yes", "great"), ok: count("yes", "ok"), notForMe: count("yes", "not_for_me"), notYet: count("not_yet"), didNotMeet: count("no") };
 }
+
+const IGNORED_AFTER_DAYS = 7;
+
+/**
+ * How likely each member is to say yes when someone asks to be introduced, 0…1.
+ * Counts only introductions they were ASKED about: approved = yes; declined, or
+ * left unanswered for over a week = no. Starts at 0.5 and moves slowly
+ * (Laplace smoothing), so new members are neither helped nor penalised.
+ * Deliberately measures responsiveness, not how often others choose them.
+ */
+export async function likelyYes(): Promise<Map<string, number>> {
+  const db = await getDb();
+  const cutoff = daysAgo(IGNORED_AFTER_DAYS);
+  const rows = await db.all<{ user_a: string; user_b: string; requested_by: string; a_decision: string; b_decision: string; status: string; created_at: string }>(
+    "SELECT user_a, user_b, requested_by, a_decision, b_decision, status, created_at FROM introductions WHERE status != 'withdrawn'",
+  );
+  const tally = new Map<string, [number, number]>();
+  for (const r of rows) {
+    const askedA = r.requested_by !== r.user_a;
+    const who = askedA ? r.user_a : r.user_b;
+    const decision = askedA ? r.a_decision : r.b_decision;
+    const yes = decision === "approved" ? 1 : 0;
+    const counted = decision !== "pending" || (r.status === "pending" && r.created_at <= cutoff);
+    if (!counted) continue;
+    const [y, n] = tally.get(who) ?? [0, 0];
+    tally.set(who, [y + yes, n + 1]);
+  }
+  const out = new Map<string, number>();
+  for (const [u, [y, n]] of tally) out.set(u, Math.round(((y + 1) / (n + 2)) * 100) / 100);
+  return out;
+}

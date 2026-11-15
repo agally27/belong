@@ -127,6 +127,7 @@ function profileInput(f: FormData) {
     radiusMiles: Number(f.get("radiusMiles") ?? 10),
     onlineOk: bool(f, "onlineOk"),
     availability: list(f, "availability"),
+    lifeStages: list(f, "lifeStages"),
   };
 }
 
@@ -587,7 +588,7 @@ export async function adminSetWeightsAction(_: ActionState, f: FormData): Promis
       moments: Number(f.get("moments")),
       complementary: Number(f.get("complementary")),
       threshold: Number(f.get("threshold")),
-      factors: { distance: factor("distance"), rarity: factor("rarity"), style: factor("style"), timing: factor("timing"), mutuals: factor("mutuals"), history: factor("history"), feedback: factor("feedback") },
+      factors: { distance: factor("distance"), rarity: factor("rarity"), style: factor("style"), timing: factor("timing"), mutuals: factor("mutuals"), history: factor("history"), feedback: factor("feedback"), lifeStage: factor("lifeStage"), reciprocity: factor("reciprocity") },
     });
     await admin.runNetworkAdmin(a.id);
     return "Weights saved and the network re-run.";

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getDb, json, now, uid } from "../db";
+import { getDb, json, now, placeholders, uid } from "../db";
 import { TOPICS, topicLabel } from "../matching/topics";
 import { taxonomyMatcher } from "../matching/semantic";
 import { AppError, audit, flag, forbidden, notFound, notify } from "./core";
@@ -40,10 +40,20 @@ async function view(userId: string, rows: CircleRow[]): Promise<CircleView[]> {
   const db = await getDb();
   const topics = await myTopics(userId);
   const out: CircleView[] = [];
+  // Members and conversations for every Circle in two queries.
+  const ids = rows.map((r) => r.id);
+  const membersBy = new Map<string, { user_id: string; role: string }[]>();
+  const convBy = new Map<string, string>();
+  if (ids.length) {
+    for (const m of await db.all<{ circle_id: string; user_id: string; role: string }>(`SELECT circle_id, user_id, role FROM circle_members WHERE circle_id IN (${placeholders(ids.length)})`, ids)) {
+      membersBy.set(m.circle_id, [...(membersBy.get(m.circle_id) ?? []), m]);
+    }
+    for (const c of await db.all<{ id: string; circle_id: string }>(`SELECT id, circle_id FROM conversations WHERE circle_id IN (${placeholders(ids.length)})`, ids)) convBy.set(c.circle_id, c.id);
+  }
   for (const r of rows) {
-    const members = await db.all<{ user_id: string; role: string }>("SELECT user_id, role FROM circle_members WHERE circle_id = ?", [r.id]);
+    const members = membersBy.get(r.id) ?? [];
     const me = members.find((m) => m.user_id === userId);
-    const conv = me ? await db.get<{ id: string }>("SELECT id FROM conversations WHERE circle_id = ?", [r.id]) : undefined;
+    const conv = me && convBy.has(r.id) ? { id: convBy.get(r.id)! } : undefined;
     const best = topics.map((t) => ({ t, s: taxonomyMatcher.similarity(t, r.topic) })).sort((a, b) => b.s - a.s)[0];
     out.push({
       id: r.id,

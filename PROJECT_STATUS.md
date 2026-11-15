@@ -5,8 +5,8 @@ _Last updated: 2026-11-15 · life stages, reciprocity and bridges added_
 ## Summary
 
 All 27 modules in the specification are built and working locally with no external credentials.
-Verified by: 115 automated tests, a real-browser run of the whole member journey plus every page at desktop and
-phone widths (443 checks), a clean lint/typecheck/production build, and the seeded journey on PostgreSQL 16.
+Verified by: 120 automated tests, a real-browser run of the whole member journey plus every page at desktop and
+phone widths (446 checks), a clean lint/typecheck/production build, and the seeded journey on PostgreSQL 16.
 
 **Not done, by design:** production services (database hosting, Claude key, Stripe, email, push, maps, storage,
 domain, deployment). **Nothing has been deployed.**
@@ -89,7 +89,8 @@ domain, deployment). **Nothing has been deployed.**
 
 **Data and operations**
 - SQLite local mode uses one connection; it is not for production.
-- List pages are not paginated (admin lists are capped at 100–400 rows) and some run one query per row.
+- Admin tables page 50 rows at a time; long conversations and notification lists load the most recent first with
+  "show earlier". Member-facing Discover, Circles and events lists are not paginated (fine at launch scale).
 - No backups, error monitoring or external analytics are configured.
 - Service-level code is covered by tests; server actions and pages are covered by the browser run rather than unit tests.
 - The browser test is a script, not part of `npm test`, and CI does not run it.

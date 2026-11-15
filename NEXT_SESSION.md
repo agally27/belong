@@ -45,8 +45,7 @@ learning from responses (D-032–D-036). Then, at the owner's request, the match
 (D-041–D-044). Still not built: conversation-style signals (needs the live AI).
 
 1. ~~Host tools~~ — done 2026-11-15.
-2. **Pagination** for messages, notifications and admin tables; batch the per-row queries in
-   `listConversations`, `circles.view` and `events.view`.
+2. ~~Pagination and batching~~ — done 2026-11-15.
 3. ~~Negation handling~~ — done 2026-11-15.
 4. ~~Password reset and email verification~~ — done 2026-11-15.
 5. ~~Content-Security-Policy~~ — done 2026-11-15 (`src/proxy.ts`).

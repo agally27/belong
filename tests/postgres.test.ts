@@ -43,6 +43,20 @@ describe.skipIf(!url)("PostgreSQL driver", () => {
         expect((await runNetwork()).membersConsidered).toBeGreaterThanOrEqual(10);
         expect((await exportUserData(user.id)).memories.length).toBeGreaterThan(0);
         const admin = await db.get<{ id: string }>("SELECT id FROM users WHERE role = 'admin'");
+        // Batched summaries and paged admin queries.
+        const { listConversations, getMessages } = await import("@/lib/services/messaging");
+        const convs = await listConversations(user.id);
+        expect(convs.length).toBeGreaterThan(0);
+        expect(convs.some((c) => c.lastMessage)).toBe(true);
+        expect((await getMessages(user.id, convs[0].id, 1)).messages).toHaveLength(1);
+        const { listAudit, listUsers, introductionStats, gatheringStats, listSignalsAdmin } = await import("@/lib/services/admin");
+        expect((await listAudit(admin!.id, 1)).rows.length).toBeGreaterThan(0);
+        expect((await listUsers(admin!.id, "", 1)).rows.length).toBeGreaterThanOrEqual(10);
+        expect((await introductionStats(admin!.id)).connected).toBeGreaterThan(0);
+        expect((await gatheringStats(admin!.id)).byStatus.proposed).toBeGreaterThan(0);
+        expect((await listSignalsAdmin(admin!.id, 2)).signals.page).toBe(2);
+        const { listCircles } = await import("@/lib/services/circles");
+        expect((await listCircles(user.id)).mine.length).toBeGreaterThan(0);
         expect((await analytics(admin!.id)).funnel[0].n).toBeGreaterThanOrEqual(10);
         // Transactions roll back on error.
         await expect(

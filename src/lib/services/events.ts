@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getDb, json, now, uid } from "../db";
+import { getDb, json, now, placeholders, uid } from "../db";
 import { TOPICS, topicLabel } from "../matching/topics";
 import { taxonomyMatcher } from "../matching/semantic";
 import { mockConnectionIdeas } from "../ai/mock";
@@ -52,10 +52,17 @@ async function view(userId: string, rows: EventRow[]): Promise<EventView[]> {
   const interests = json<string[]>(profile?.interests, []);
   const myCircles = new Set((await db.all<{ circle_id: string }>("SELECT circle_id FROM circle_members WHERE user_id = ?", [userId])).map((r) => r.circle_id));
   const out: EventView[] = [];
+  const ids = rows.map((r) => r.id);
+  const going = new Map<string, string[]>();
+  if (ids.length) {
+    for (const g of await db.all<{ event_id: string; user_id: string }>(`SELECT event_id, user_id FROM event_rsvps WHERE status = 'going' AND event_id IN (${placeholders(ids.length)})`, ids)) {
+      going.set(g.event_id, [...(going.get(g.event_id) ?? []), g.user_id]);
+    }
+  }
   for (const r of rows) {
     // Circle events are visible to that circle's members only.
     if (r.circle_id && !myCircles.has(r.circle_id)) continue;
-    const rsvps = await db.all<{ user_id: string }>("SELECT user_id FROM event_rsvps WHERE event_id = ? AND status = 'going'", [r.id]);
+    const rsvps = (going.get(r.id) ?? []).map((user_id) => ({ user_id }));
     const best = interests.map((t) => ({ t, s: taxonomyMatcher.similarity(t, r.topic) })).sort((a, b) => b.s - a.s)[0];
     out.push({
       id: r.id,

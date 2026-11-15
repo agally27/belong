@@ -14,18 +14,19 @@ import { MessageThread } from "./thread";
 
 export const metadata: Metadata = { title: "Conversation" };
 
-export default async function ConversationPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ConversationPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ show?: string }> }) {
   const user = await requireMember();
   const { id } = await params;
+  const show = Math.min(2000, Math.max(100, Math.trunc(Number((await searchParams).show)) || 100));
   let data;
   try {
-    data = await getMessages(user.id, id);
+    data = await getMessages(user.id, id, show);
   } catch (e) {
     if (e instanceof AppError) notFound();
     throw e;
   }
   await markRead(user.id, id);
-  const { access, messages } = data;
+  const { access, messages, hasEarlier } = data;
   const other = access.otherId ? (await previewsById([access.otherId])).get(access.otherId) : null;
   const circle = access.circleId ? await (await getDb()).get<{ id: string; name: string }>("SELECT id, name FROM circles WHERE id = ?", [access.circleId]) : null;
   const assistant = await connectionAssistant(user.id, id);
@@ -49,6 +50,14 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
       </header>
 
       <div className="grid gap-5 xl:grid-cols-[1fr_19rem]">
+        <div className="min-w-0">
+        {hasEarlier && (
+          <p className="mb-2 text-center">
+            <Link href={`/messages/${id}?show=${show + 100}`} scroll={false} className="text-sm font-medium text-lavender-600 hover:underline">
+              Show earlier messages
+            </Link>
+          </p>
+        )}
         <MessageThread
           conversationId={id}
           group={access.kind !== "direct"}
@@ -62,6 +71,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
             time: new Date(m.createdAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }),
           }))}
         />
+        </div>
         {other && (
           <aside className="space-y-4" aria-label="Connection assistant">
             {assistant && (

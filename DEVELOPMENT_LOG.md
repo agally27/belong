@@ -107,3 +107,11 @@ PostgreSQL journey passes with all three migrations; browser run 421 checks, 0 p
 - Bug found in the browser run: email links used the build-time URL; now `APP_URL` at runtime (D-047).
 - Tests: `tests/verification.test.ts` (4). Total 115 passed, 1 skipped; PostgreSQL with six migrations passes;
   browser run 443 checks, 0 problems (now confirms email from the outbox and resets a password end to end).
+
+**Security and scale**
+- Strict nonce-based Content-Security-Policy (`src/proxy.ts`, D-048); verified in production and development modes.
+- Conversation, Circle and event lists now use a fixed number of queries instead of several per row.
+- Admin tables page 50 at a time with totals computed separately; conversations and notifications show the most
+  recent first with "show earlier".
+- Tests: `tests/paging.test.ts` (5). Total 120 passed, 1 skipped; PostgreSQL test now covers the batched and paged
+  queries; browser run 446 checks, 0 problems.

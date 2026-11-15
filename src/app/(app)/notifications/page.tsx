@@ -21,9 +21,12 @@ const ICON: Record<string, typeof Bell> = {
   safety: ShieldCheck,
 };
 
-export default async function NotificationsPage() {
+export default async function NotificationsPage({ searchParams }: { searchParams: Promise<{ show?: string }> }) {
   const user = await requireMember();
-  const items = await listNotifications(user.id);
+  const show = Math.min(1000, Math.max(30, Math.trunc(Number((await searchParams).show)) || 30));
+  const fetched = await listNotifications(user.id, show + 1);
+  const hasOlder = fetched.length > show;
+  const items = fetched.slice(0, show);
   const unread = items.filter((n) => !n.readAt).length;
   return (
     <div className="max-w-3xl">
@@ -69,7 +72,15 @@ export default async function NotificationsPage() {
             );
           })}
         </ul>
-      ) : (
+      ) : null}
+      {hasOlder && (
+        <div className="mt-4 text-center">
+          <Link href={`/notifications?show=${show + 60}`} scroll={false} className="text-sm font-medium text-lavender-600 hover:underline">
+            Show older notifications
+          </Link>
+        </div>
+      )}
+      {items.length ? null : (
         <EmptyState icon={<Bell size={36} />} title="Nothing yet" body="You'll hear about new suggestions, introductions and messages here." />
       )}
     </div>

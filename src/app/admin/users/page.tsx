@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { adminSetUserPlanAction, adminSetUserRoleAction, adminSetUserStatusAction } from "@/app/actions";
-import { PrivacyNote, StatusPill, Table, Td } from "@/components/admin-ui";
+import { Pager, PrivacyNote, StatusPill, Table, Td, pageFrom } from "@/components/admin-ui";
 import { ActionButton, ActionForm, SubmitButton } from "@/components/forms";
 import { Badge, PageHeader, formatDate, timeAgo } from "@/components/ui";
 import { listUsers } from "@/lib/services/admin";
@@ -9,10 +9,11 @@ import { requireAdmin } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Members" };
 
-export default async function AdminUsersPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+export default async function AdminUsersPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string }> }) {
   const admin = await requireAdmin();
-  const { q = "" } = await searchParams;
-  const [users, plans] = [await listUsers(admin.id, q), await listPlans(true)];
+  const { q = "", page: pageRaw } = await searchParams;
+  const page = pageFrom(pageRaw);
+  const [{ rows: users, hasNext }, plans] = [await listUsers(admin.id, q, page), await listPlans(true)];
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Administration" title="Members" description="Accounts, profiles and companion status. Counts only — never content." />
@@ -93,6 +94,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
           </tr>
         ))}
       </Table>
+      <Pager page={page} hasNext={hasNext} path="/admin/users" params={q ? { q } : {}} />
       <PrivacyNote />
     </div>
   );

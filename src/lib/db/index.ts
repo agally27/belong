@@ -65,3 +65,16 @@ export const json = <T>(s: string | null | undefined, fallback: T): T => {
 };
 /** Canonical ordering for symmetric pairs (user_a < user_b). */
 export const pair = (x: string, y: string): [string, string] => (x < y ? [x, y] : [y, x]);
+
+/** "?, ?, ?" for an IN (...) list. Callers must handle an empty list themselves. */
+export const placeholders = (n: number) => Array.from({ length: n }, () => "?").join(", ");
+
+/** A page of results. Fetch `PAGE_SIZE + 1` rows and pass them here to know whether there's a next page. */
+export interface Paged<T> {
+  rows: T[];
+  page: number;
+  hasNext: boolean;
+}
+export const PAGE_SIZE = 50;
+export const pageOf = <T>(rows: T[], page: number, size = PAGE_SIZE): Paged<T> => ({ rows: rows.slice(0, size), page, hasNext: rows.length > size });
+export const pageParams = (page: number, size = PAGE_SIZE): [number, number] => [size + 1, Math.max(0, page - 1) * size];

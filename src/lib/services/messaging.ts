@@ -1,4 +1,4 @@
-import { getDb, json, now, uid } from "../db";
+import { getDb, json, now, placeholders, uid } from "../db";
 import { getAIProvider } from "../ai";
 import { topicLabel } from "../matching/topics";
 import { reasonTexts, type MatchReason } from "../matching/engine";
@@ -93,29 +93,41 @@ export async function listConversations(userId: string): Promise<ConversationSum
   );
   const previews = await previewsById(direct.map((d) => (d.user_a === userId ? d.user_b : d.user_a)));
   const out: ConversationSummary[] = [];
-  const stats = async (id: string) => {
-    const last = await db.get<{ content: string; created_at: string }>("SELECT content, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 1", [id]);
-    const read = await db.get<{ last_read_at: string }>("SELECT last_read_at FROM conversation_reads WHERE conversation_id = ? AND user_id = ?", [id, userId]);
-    const unread = await db.get<{ n: number }>(
-      "SELECT COUNT(*) AS n FROM messages WHERE conversation_id = ? AND created_at > ? AND (sender_id IS NULL OR sender_id != ?)",
-      [id, read?.last_read_at ?? "", userId],
-    );
-    return { lastMessage: last?.content ?? null, lastAt: last?.created_at ?? null, unread: Number(unread?.n ?? 0) };
-  };
-  for (const d of direct) {
-    const otherId = d.user_a === userId ? d.user_b : d.user_a;
-    const member = previews.get(otherId);
-    if (!member || blocked.has(otherId)) continue;
-    out.push({ id: d.id, kind: "direct", title: member.name, member, circleId: null, ...(await stats(d.id)) });
-  }
-  for (const c of circles) {
-    out.push({ id: c.id, kind: "circle", title: c.name, member: null, circleId: c.circle_id, ...(await stats(c.id)) });
-  }
   const gatherings = await db.all<{ id: string; title: string }>(
     "SELECT cv.id, g.title FROM conversations cv JOIN gatherings g ON g.id = cv.gathering_id JOIN gathering_invites i ON i.gathering_id = g.id WHERE i.user_id = ? AND i.status = 'accepted' AND g.status IN ('confirmed', 'completed')",
     [userId],
   );
-  for (const g of gatherings) out.push({ id: g.id, kind: "gathering", title: g.title, member: null, circleId: null, ...(await stats(g.id)) });
+  // Last message and unread count for every conversation, in three queries rather than three per conversation.
+  const ids = [...direct.map((d) => d.id), ...circles.map((c) => c.id), ...gatherings.map((g) => g.id)];
+  const last = new Map<string, { content: string; created_at: string }>();
+  const unread = new Map<string, number>();
+  if (ids.length) {
+    const inIds = placeholders(ids.length);
+    for (const r of await db.all<{ conversation_id: string; content: string; created_at: string }>(
+      `SELECT m.conversation_id, m.content, m.created_at FROM messages m
+       JOIN (SELECT conversation_id, MAX(created_at) AS latest FROM messages WHERE conversation_id IN (${inIds}) GROUP BY conversation_id) t
+         ON t.conversation_id = m.conversation_id AND t.latest = m.created_at`,
+      ids,
+    )) last.set(r.conversation_id, r);
+    for (const r of await db.all<{ conversation_id: string; n: number }>(
+      `SELECT m.conversation_id, COUNT(*) AS n FROM messages m
+       LEFT JOIN conversation_reads r ON r.conversation_id = m.conversation_id AND r.user_id = ?
+       WHERE m.conversation_id IN (${inIds}) AND m.created_at > COALESCE(r.last_read_at, '') AND (m.sender_id IS NULL OR m.sender_id != ?)
+       GROUP BY m.conversation_id`,
+      [userId, ...ids, userId],
+    )) unread.set(r.conversation_id, Number(r.n));
+  }
+  const stats = (id: string) => ({ lastMessage: last.get(id)?.content ?? null, lastAt: last.get(id)?.created_at ?? null, unread: unread.get(id) ?? 0 });
+  for (const d of direct) {
+    const otherId = d.user_a === userId ? d.user_b : d.user_a;
+    const member = previews.get(otherId);
+    if (!member || blocked.has(otherId)) continue;
+    out.push({ id: d.id, kind: "direct", title: member.name, member, circleId: null, ...stats(d.id) });
+  }
+  for (const c of circles) {
+    out.push({ id: c.id, kind: "circle", title: c.name, member: null, circleId: c.circle_id, ...stats(c.id) });
+  }
+  for (const g of gatherings) out.push({ id: g.id, kind: "gathering", title: g.title, member: null, circleId: null, ...stats(g.id) });
   return out.sort((a, b) => (b.lastAt ?? "").localeCompare(a.lastAt ?? ""));
 }
 
@@ -123,18 +135,21 @@ export async function unreadMessageCount(userId: string): Promise<number> {
   return (await listConversations(userId)).reduce((n, c) => n + c.unread, 0);
 }
 
-export async function getMessages(userId: string, conversationId: string, limit = 200): Promise<{ access: Access; messages: Message[] }> {
+export async function getMessages(userId: string, conversationId: string, limit = 100): Promise<{ access: Access; messages: Message[]; hasEarlier: boolean }> {
   const access = await assertConversationAccess(userId, conversationId);
   const db = await getDb();
   const rows = (
     await db.all<{ id: string; sender_id: string | null; content: string; simulated: number; created_at: string }>(
       "SELECT id, sender_id, content, simulated, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT ?",
-      [conversationId, limit],
+      [conversationId, Math.min(Math.max(1, limit), 2000) + 1],
     )
   ).reverse();
+  const hasEarlier = rows.length > Math.min(Math.max(1, limit), 2000);
+  if (hasEarlier) rows.shift();
   const names = await previewsById(rows.map((r) => r.sender_id).filter(Boolean) as string[]);
   return {
     access,
+    hasEarlier,
     messages: rows.map((r) => ({
       id: r.id,
       senderId: r.sender_id,

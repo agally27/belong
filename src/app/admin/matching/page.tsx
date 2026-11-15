@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { adminRunNetworkAction, adminSetWeightsAction } from "@/app/actions";
-import { StatusPill, Table, Td } from "@/components/admin-ui";
+import { Pager, StatusPill, Table, Td, pageFrom } from "@/components/admin-ui";
 import { ActionButton, ActionForm, SubmitButton } from "@/components/forms";
 import { Card, Field, PageHeader, timeAgo } from "@/components/ui";
 import { factorsOf } from "@/lib/matching/engine";
@@ -23,9 +23,10 @@ export const metadata: Metadata = { title: "Matching" };
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 
-export default async function AdminMatchingPage() {
+export default async function AdminMatchingPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const admin = await requireAdmin();
-  const [weights, matches] = [await getWeightsAdmin(admin.id), await listMatchesAdmin(admin.id)];
+  const page = pageFrom((await searchParams).page);
+  const [weights, { rows: matches, hasNext }] = [await getWeightsAdmin(admin.id), await listMatchesAdmin(admin.id, page)];
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Agent network" title="Matching engine" description="The engine compares approved signals across three dimensions. It runs locally and does not depend on any AI service." actions={<ActionButton action={adminRunNetworkAction} variant="primary" size="md" pendingLabel="Running…">Run now</ActionButton>} />
@@ -79,6 +80,7 @@ export default async function AdminMatchingPage() {
           </tr>
         ))}
       </Table>
+      <Pager page={page} hasNext={hasNext} path="/admin/matching" />
     </div>
   );
 }

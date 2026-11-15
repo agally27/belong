@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { StatusPill, Table, Td } from "@/components/admin-ui";
+import { Pager, StatusPill, Table, Td, pageFrom } from "@/components/admin-ui";
 import { BarList } from "@/components/charts";
 import { Badge, PageHeader, timeAgo } from "@/components/ui";
 import { listSignalsAdmin } from "@/lib/services/admin";
@@ -7,9 +7,10 @@ import { requireAdmin } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Signals" };
 
-export default async function AdminSignalsPage() {
+export default async function AdminSignalsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const admin = await requireAdmin();
-  const data = await listSignalsAdmin(admin.id);
+  const page = pageFrom((await searchParams).page);
+  const data = await listSignalsAdmin(admin.id, page);
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Agent network" title="Connection signals" description="Signals are the only layer the agent network can read: generalised topics that members have approved. Their sources — memories and conversations — are not visible here." />
@@ -17,8 +18,8 @@ export default async function AdminSignalsPage() {
         <BarList title="Most common topics" note="Active signals by topic" data={data.byTopic} />
         <BarList title="Signals by kind" note="Active signals" data={data.byKind} />
       </div>
-      <Table head={["Member", "Signal", "Kind", "Source", "Status", "Created"]} empty={!data.signals.length}>
-        {data.signals.map((s) => (
+      <Table head={["Member", "Signal", "Kind", "Source", "Status", "Created"]} empty={!data.signals.rows.length}>
+        {data.signals.rows.map((s) => (
           <tr key={s.id}>
             <Td className="font-medium text-charcoal">{s.member}</Td>
             <Td className="capitalize">{s.label}</Td>
@@ -34,6 +35,7 @@ export default async function AdminSignalsPage() {
           </tr>
         ))}
       </Table>
+      <Pager page={page} hasNext={data.signals.hasNext} path="/admin/signals" />
     </div>
   );
 }

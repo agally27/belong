@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
-import { StatusPill, Table, Td } from "@/components/admin-ui";
+import { Pager, StatusPill, Table, Td, pageFrom } from "@/components/admin-ui";
 import { PageHeader, Stat, timeAgo } from "@/components/ui";
-import { listIntroductionsAdmin } from "@/lib/services/admin";
+import { introductionStats, listIntroductionsAdmin } from "@/lib/services/admin";
 import { requireAdmin } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Introductions" };
 
-export default async function AdminIntroductionsPage() {
+export default async function AdminIntroductionsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const admin = await requireAdmin();
-  const intros = await listIntroductionsAdmin(admin.id);
-  const by = (s: string) => intros.filter((i) => i.status === s).length;
+  const page = pageFrom((await searchParams).page);
+  const { rows: intros, hasNext } = await listIntroductionsAdmin(admin.id, page);
+  const stats = await introductionStats(admin.id);
+  const by = (s: string) => stats[s] ?? 0;
   const decided = by("connected") + by("declined");
   return (
     <div className="space-y-6">
@@ -40,6 +42,7 @@ export default async function AdminIntroductionsPage() {
           </tr>
         ))}
       </Table>
+      <Pager page={page} hasNext={hasNext} path="/admin/introductions" />
     </div>
   );
 }

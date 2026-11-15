@@ -1,4 +1,4 @@
-import { getDb, json, now } from "../db";
+import { getDb, json, now, pageOf, pageParams, type Paged } from "../db";
 import { DEFAULT_WEIGHTS, type MatchWeights } from "../matching/engine";
 import { AppError, audit, forbidden, notFound, notify } from "./core";
 import { runNetwork } from "./network";
@@ -59,7 +59,7 @@ export interface AdminUser {
   lastActiveAt: string | null;
 }
 
-export async function listUsers(actorId: string, q = ""): Promise<AdminUser[]> {
+export async function listUsers(actorId: string, q = "", page = 1): Promise<Paged<AdminUser>> {
   await assertAdmin(actorId);
   const db = await getDb();
   const like = `%${q.trim().toLowerCase()}%`;
@@ -75,10 +75,10 @@ export async function listUsers(actorId: string, q = ""): Promise<AdminUser[]> {
      LEFT JOIN companions c ON c.user_id = u.id
      LEFT JOIN subscriptions s ON s.user_id = u.id
      WHERE LOWER(u.email) LIKE ? OR LOWER(COALESCE(p.display_name, '')) LIKE ?
-     ORDER BY u.created_at DESC LIMIT 200`,
-    [like, like],
+     ORDER BY u.created_at DESC LIMIT ? OFFSET ?`,
+    [like, like, ...pageParams(page)],
   );
-  return rows.map((r) => ({
+  return pageOf(rows.map((r) => ({
     id: String(r.id),
     email: String(r.email),
     name: String(r.display_name ?? "—"),
@@ -95,7 +95,7 @@ export async function listUsers(actorId: string, q = ""): Promise<AdminUser[]> {
     onboarded: Boolean(r.onboarded_at),
     createdAt: String(r.created_at),
     lastActiveAt: r.last_active_at as string | null,
-  }));
+  })), page);
 }
 
 export async function setUserStatus(actorId: string, userId: string, status: "active" | "suspended") {
@@ -126,32 +126,33 @@ export async function setUserPlan(actorId: string, userId: string, planId: strin
 }
 
 /** Signals are the network-visible layer, so administrators may inspect them (never their sources). */
-export async function listSignalsAdmin(actorId: string) {
+export async function listSignalsAdmin(actorId: string, page = 1) {
   await assertAdmin(actorId);
   const db = await getDb();
   const rows = await db.all<{ id: string; kind: string; topic: string; temporary: number; expires_at: string | null; status: string; created_at: string; display_name: string; source_type: string }>(
-    "SELECT s.id, s.kind, s.topic, s.temporary, s.expires_at, s.status, s.created_at, s.source_type, p.display_name FROM signals s JOIN profiles p ON p.user_id = s.user_id ORDER BY s.created_at DESC LIMIT 400",
+    "SELECT s.id, s.kind, s.topic, s.temporary, s.expires_at, s.status, s.created_at, s.source_type, p.display_name FROM signals s JOIN profiles p ON p.user_id = s.user_id ORDER BY s.created_at DESC LIMIT ? OFFSET ?",
+    pageParams(page),
   );
-  const byTopic = new Map<string, number>();
-  const byKind = new Map<string, number>();
-  for (const r of rows.filter((x) => x.status === "active")) {
-    byTopic.set(r.topic, (byTopic.get(r.topic) ?? 0) + 1);
-    byKind.set(r.kind, (byKind.get(r.kind) ?? 0) + 1);
-  }
+  const byTopic = await db.all<{ topic: string; n: number }>("SELECT topic, COUNT(*) AS n FROM signals WHERE status = 'active' GROUP BY topic ORDER BY COUNT(*) DESC, topic LIMIT 12");
+  const byKind = await db.all<{ kind: string; n: number }>("SELECT kind, COUNT(*) AS n FROM signals WHERE status = 'active' GROUP BY kind ORDER BY COUNT(*) DESC");
   return {
-    signals: rows.map((r) => ({ id: r.id, member: r.display_name, kind: r.kind, label: signalTopicLabel(r.topic), temporary: Boolean(r.temporary), expiresAt: r.expires_at, status: r.status, source: r.source_type, createdAt: r.created_at })),
-    byTopic: [...byTopic.entries()].map(([t, n]) => ({ label: signalTopicLabel(t), n })).sort((a, b) => b.n - a.n).slice(0, 12),
-    byKind: [...byKind.entries()].map(([label, n]) => ({ label, n })).sort((a, b) => b.n - a.n),
+    signals: pageOf(
+      rows.map((r) => ({ id: r.id, member: r.display_name, kind: r.kind, label: signalTopicLabel(r.topic), temporary: Boolean(r.temporary), expiresAt: r.expires_at, status: r.status, source: r.source_type, createdAt: r.created_at })),
+      page,
+    ),
+    byTopic: byTopic.map((r) => ({ label: signalTopicLabel(r.topic), n: Number(r.n) })),
+    byKind: byKind.map((r) => ({ label: r.kind, n: Number(r.n) })),
   };
 }
 
-export async function listMatchesAdmin(actorId: string) {
+export async function listMatchesAdmin(actorId: string, page = 1) {
   await assertAdmin(actorId);
   const db = await getDb();
   const rows = await db.all<{ id: string; score: number; dimensions: string; reasons: string; status: string; updated_at: string; a: string; b: string }>(
-    "SELECT m.id, m.score, m.dimensions, m.reasons, m.status, m.updated_at, pa.display_name AS a, pb.display_name AS b FROM matches m JOIN profiles pa ON pa.user_id = m.user_a JOIN profiles pb ON pb.user_id = m.user_b ORDER BY m.score DESC LIMIT 200",
+    "SELECT m.id, m.score, m.dimensions, m.reasons, m.status, m.updated_at, pa.display_name AS a, pb.display_name AS b FROM matches m JOIN profiles pa ON pa.user_id = m.user_a JOIN profiles pb ON pb.user_id = m.user_b ORDER BY m.score DESC, m.id LIMIT ? OFFSET ?",
+    pageParams(page),
   );
-  return rows.map((r) => ({
+  return pageOf(rows.map((r) => ({
     id: r.id,
     a: r.a,
     b: r.b,
@@ -160,7 +161,7 @@ export async function listMatchesAdmin(actorId: string) {
     dimensions: json(r.dimensions, { shared: 0, moments: 0, complementary: 0 }),
     topReason: json<{ text: string }[]>(r.reasons, [])[0]?.text ?? "",
     updatedAt: r.updated_at,
-  }));
+  })), page);
 }
 
 export async function getWeightsAdmin(actorId: string): Promise<MatchWeights> {
@@ -187,12 +188,22 @@ export async function runNetworkAdmin(actorId: string) {
   return runNetwork({ actorId });
 }
 
-export async function listIntroductionsAdmin(actorId: string) {
+export async function listIntroductionsAdmin(actorId: string, page = 1) {
   await assertAdmin(actorId);
   const db = await getDb();
-  return db.all<{ id: string; a: string; b: string; a_decision: string; b_decision: string; status: string; created_at: string; decided_at: string | null }>(
-    "SELECT i.id, pa.display_name AS a, pb.display_name AS b, i.a_decision, i.b_decision, i.status, i.created_at, i.decided_at FROM introductions i JOIN profiles pa ON pa.user_id = i.user_a JOIN profiles pb ON pb.user_id = i.user_b ORDER BY i.created_at DESC LIMIT 200",
+  const rows = await db.all<{ id: string; a: string; b: string; a_decision: string; b_decision: string; status: string; created_at: string; decided_at: string | null }>(
+    "SELECT i.id, pa.display_name AS a, pb.display_name AS b, i.a_decision, i.b_decision, i.status, i.created_at, i.decided_at FROM introductions i JOIN profiles pa ON pa.user_id = i.user_a JOIN profiles pb ON pb.user_id = i.user_b ORDER BY i.created_at DESC, i.id LIMIT ? OFFSET ?",
+    pageParams(page),
   );
+  return pageOf(rows, page);
+}
+
+/** Counts by outcome across all introductions (not just the current page). */
+export async function introductionStats(actorId: string): Promise<Record<string, number>> {
+  await assertAdmin(actorId);
+  const db = await getDb();
+  const rows = await db.all<{ status: string; n: number }>("SELECT status, COUNT(*) AS n FROM introductions GROUP BY status");
+  return Object.fromEntries(rows.map((r) => [r.status, Number(r.n)]));
 }
 
 export async function listCirclesAdmin(actorId: string) {
@@ -285,13 +296,14 @@ export async function subscriptionSummary(actorId: string) {
   return { tiers, mrrPence: tiers.reduce((s, t) => s + t.mrrPence, 0) };
 }
 
-export async function listAudit(actorId: string, limit = 150) {
+export async function listAudit(actorId: string, page = 1) {
   await assertAdmin(actorId);
   const db = await getDb();
-  return db.all<{ id: string; actor: string | null; action: string; target_type: string | null; target_id: string | null; meta: string; created_at: string }>(
-    "SELECT a.id, p.display_name AS actor, a.action, a.target_type, a.target_id, a.meta, a.created_at FROM audit_log a LEFT JOIN profiles p ON p.user_id = a.actor_id ORDER BY a.created_at DESC LIMIT ?",
-    [limit],
+  const rows = await db.all<{ id: string; actor: string | null; action: string; target_type: string | null; target_id: string | null; meta: string; created_at: string }>(
+    "SELECT a.id, p.display_name AS actor, a.action, a.target_type, a.target_id, a.meta, a.created_at FROM audit_log a LEFT JOIN profiles p ON p.user_id = a.actor_id ORDER BY a.created_at DESC, a.id LIMIT ? OFFSET ?",
+    pageParams(page),
   );
+  return pageOf(rows, page);
 }
 
 export async function listTickets(actorId: string) {
@@ -346,16 +358,27 @@ export async function analytics(actorId: string, days = 14) {
   };
 }
 
-export async function listGatheringsAdmin(actorId: string) {
+export async function listGatheringsAdmin(actorId: string, page = 1) {
   await assertAdmin(actorId);
   const db = await getDb();
-  return db.all<{ id: string; title: string; topic: string; area: string | null; slot: string; starts_at: string; status: string; created_at: string; invited: number; accepted: number; declined: number; circle_id: string | null }>(
+  const rows = await db.all<{ id: string; title: string; topic: string; area: string | null; slot: string; starts_at: string; status: string; created_at: string; invited: number; accepted: number; declined: number; circle_id: string | null }>(
     `SELECT g.id, g.title, g.topic, g.area, g.slot, g.starts_at, g.status, g.created_at, g.circle_id,
             (SELECT COUNT(*) FROM gathering_invites i WHERE i.gathering_id = g.id) AS invited,
             (SELECT COUNT(*) FROM gathering_invites i WHERE i.gathering_id = g.id AND i.status = 'accepted') AS accepted,
             (SELECT COUNT(*) FROM gathering_invites i WHERE i.gathering_id = g.id AND i.status = 'declined') AS declined
-     FROM gatherings g ORDER BY g.created_at DESC LIMIT 200`,
+     FROM gatherings g ORDER BY g.created_at DESC, g.id LIMIT ? OFFSET ?`,
+    pageParams(page),
   );
+  return pageOf(rows, page);
+}
+
+/** Counts by status across all gatherings, and how many became Circles. */
+export async function gatheringStats(actorId: string) {
+  await assertAdmin(actorId);
+  const db = await getDb();
+  const rows = await db.all<{ status: string; n: number }>("SELECT status, COUNT(*) AS n FROM gatherings GROUP BY status");
+  const circles = await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM gatherings WHERE circle_id IS NOT NULL");
+  return { byStatus: Object.fromEntries(rows.map((r) => [r.status, Number(r.n)])) as Record<string, number>, becameCircles: Number(circles?.n ?? 0) };
 }
 
 export async function cancelGatheringAdmin(actorId: string, gatheringId: string) {

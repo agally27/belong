@@ -54,3 +54,34 @@ export function PrivacyNote() {
     </p>
   );
 }
+
+/** Previous / Next links for a paged admin table. Keeps any other query parameters. */
+export function Pager({ page, hasNext, path, params = {} }: { page: number; hasNext: boolean; path: string; params?: Record<string, string> }) {
+  if (page <= 1 && !hasNext) return null;
+  const href = (p: number) => {
+    const q = new URLSearchParams({ ...params, ...(p > 1 ? { page: String(p) } : {}) }).toString();
+    return q ? `${path}?${q}` : path;
+  };
+  const link = "rounded-full border border-sand bg-paper px-4 py-1.5 text-sm text-ink-700 hover:bg-cream";
+  return (
+    <nav aria-label="Pages" className="flex items-center justify-between gap-3">
+      {page > 1 ? (
+        <a href={href(page - 1)} className={link}>
+          ← Previous
+        </a>
+      ) : (
+        <span />
+      )}
+      <span className="text-sm text-ink-500">Page {page}</span>
+      {hasNext ? (
+        <a href={href(page + 1)} className={link}>
+          Next →
+        </a>
+      ) : (
+        <span />
+      )}
+    </nav>
+  );
+}
+
+export const pageFrom = (v: string | undefined) => Math.max(1, Math.min(10000, Math.trunc(Number(v)) || 1));

@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
-import { Table, Td } from "@/components/admin-ui";
+import { Pager, Table, Td, pageFrom } from "@/components/admin-ui";
 import { PageHeader } from "@/components/ui";
 import { listAudit } from "@/lib/services/admin";
 import { requireAdmin } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Audit log" };
 
-export default async function AdminAuditPage() {
+export default async function AdminAuditPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const admin = await requireAdmin();
-  const rows = await listAudit(admin.id);
+  const page = pageFrom((await searchParams).page);
+  const { rows, hasNext } = await listAudit(admin.id, page);
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Accountability" title="Audit log" description="A record of security- and privacy-relevant actions: consent changes, introductions, moderation and configuration. The most recent 150 entries." />
+      <PageHeader eyebrow="Accountability" title="Audit log" description="A record of security- and privacy-relevant actions: consent changes, introductions, moderation and configuration. Most recent first." />
       <Table head={["When", "Who", "Action", "Target", "Details"]} empty={!rows.length}>
         {rows.map((r) => (
           <tr key={r.id}>
@@ -25,6 +26,7 @@ export default async function AdminAuditPage() {
           </tr>
         ))}
       </Table>
+      <Pager page={page} hasNext={hasNext} path="/admin/audit" />
     </div>
   );
 }

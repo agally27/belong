@@ -94,7 +94,7 @@ describe("gatherings: allowances and administration", () => {
       await db.run("UPDATE users SET role = 'admin' WHERE id = ?", [admin]);
       const [a] = await walkers(3);
       await proposeGatherings();
-      const rows = await listGatheringsAdmin(admin);
+      const { rows } = await listGatheringsAdmin(admin);
       expect(rows).toHaveLength(1);
       expect(Number(rows[0].invited)).toBe(3);
       expect(JSON.stringify(rows)).not.toMatch(/Walker/);

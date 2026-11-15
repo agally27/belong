@@ -115,3 +115,10 @@ PostgreSQL journey passes with all three migrations; browser run 421 checks, 0 p
   recent first with "show earlier".
 - Tests: `tests/paging.test.ts` (5). Total 120 passed, 1 skipped; PostgreSQL test now covers the batched and paged
   queries; browser run 446 checks, 0 problems.
+
+**CI and accessibility**
+- First GitHub Actions run with the browser journey passed (run 13: lint, typecheck, tests with PostgreSQL 16, build,
+  journey in ~1.5 min).
+- axe-core added to the browser test. First run found six serious issues (colour contrast on 40+ pages, an ARIA
+  misuse, a colour-only link, graph link naming, nested interactive controls, unfocusable scroll regions); all fixed.
+  Browser run: 446 checks, 0 problems, 0 serious/critical accessibility issues.

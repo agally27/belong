@@ -37,7 +37,7 @@ export default async function CompanionPage({ searchParams }: { searchParams: Pr
             </h1>
             <p className="text-sm text-ink-500">
               Your AI companion · private to you ·{" "}
-              <Link href="/memories" className="text-lavender-600 hover:underline">
+              <Link href="/memories" className="text-lavender-600 underline">
                 what {companion.name} remembers
               </Link>
             </p>

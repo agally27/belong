@@ -271,7 +271,7 @@ export default async function MemoriesPage() {
             {MEMORY_CATEGORIES.filter((c) => active.some((m) => m.category === c.id)).map((c) => (
               <div key={c.id}>
                 <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-ink-500">
-                  {c.label} <span className="font-normal normal-case tracking-normal text-ink-300">· {c.hint}</span>
+                  {c.label} <span className="font-normal normal-case tracking-normal text-ink-500">· {c.hint}</span>
                 </h3>
                 <ul className="space-y-2.5">
                   {active

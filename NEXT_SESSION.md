@@ -1,6 +1,6 @@
 # NEXT SESSION — handover
 
-_Last updated: 2026-11-15, session 2._
+_Last updated: 2026-11-15, end of session 2._
 
 ## 1. Current project state
 
@@ -33,23 +33,19 @@ None. `npm run check` is clean. The `ExperimentalWarning: SQLite` line in output
 
 ## 7. Exact next task
 
-Added 2026-11-14: local matching (postcode district + radius), engine multipliers (rarity, style, timing,
-friends-of-friends) and companion-proposed gatherings — see the last entry in `DEVELOPMENT_LOG.md` and D-025–D-031.
-Ideas discussed with the owner but NOT built: learning from accept/dismiss behaviour, post-meeting feedback,
-reciprocity scoring, "bridge" introductions between friend groups, admin controls for the multipliers and gatherings.
+Everything from the earlier lists is done (session 2, 2026-11-15): admin tuning, after-meeting feedback and learning,
+host tools, negation handling, life stages, reciprocity, bridges between Circles, email verification and password
+reset, a nonce-based CSP, pagination/batching, and the browser journey in CI. Decisions D-032–D-048.
 
 If the owner has given no other instruction, work down this list, one commit each, without waiting for credentials:
 
-Done 2026-11-15: task 0 (admin tuning, gatherings admin, allowance check, UK-time fix) and the feedback loop +
-learning from responses (D-032–D-036). Then, at the owner's request, the matching ideas: life stages, reciprocity and bridges between Circles
-(D-041–D-044). Still not built: conversation-style signals (needs the live AI).
-
-1. ~~Host tools~~ — done 2026-11-15.
-2. ~~Pagination and batching~~ — done 2026-11-15.
-3. ~~Negation handling~~ — done 2026-11-15.
-4. ~~Password reset and email verification~~ — done 2026-11-15.
-5. ~~Content-Security-Policy~~ — done 2026-11-15 (`src/proxy.ts`).
-6. ~~Browser test in CI~~ — added 2026-11-15 (check the first real run on GitHub).
+1. ~~Automated accessibility checks~~ — done 2026-11-15 (axe-core in `scripts/e2e.mjs`; fixes in D-049).
+2. **Notification emails** (opt-in per type, e.g. new introduction, gathering confirmed) through the existing email
+   adapter, with an unsubscribe link and a daily-digest option. Respect `marketing_emails` only for marketing.
+3. **Dockerfile** for self-hosting (multi-stage, non-root, includes `db/migrations`), documented in `docs/DEPLOYMENT.md`.
+4. **Admin view of host removals** (from `circle_removals`) in Admin → Circles, so moderators can spot patterns.
+5. Ideas still open with the owner: conversation-style signals (needs the live AI), bridges between informal friend
+   clusters (not just Circles).
 
 If the owner HAS supplied credentials, do the matching item in `INTEGRATION_CHECKLIST.md` first.
 

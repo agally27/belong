@@ -31,7 +31,7 @@ export function ColumnChart({ title, data, unit }: { title: string; data: Point[
         {[0, top / 2, top].map((t) => (
           <g key={t}>
             <line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} stroke="#e8dfcc" strokeWidth="1" strokeDasharray={t === 0 ? undefined : "2 4"} />
-            <text x={pad.l - 6} y={y(t) + 4} textAnchor="end" fontSize="10" fill="#736c65">
+            <text x={pad.l - 6} y={y(t) + 4} textAnchor="end" fontSize="10" fill="#6c655e">
               {t}
             </text>
           </g>
@@ -47,7 +47,7 @@ export function ColumnChart({ title, data, unit }: { title: string; data: Point[
               </rect>
               {d.n > 0 && <path d={`M${x},${y(0)} v${-(h - 4)} q0,-4 4,-4 h${bw - 8} q4,0 4,4 v${h - 4} z`} className="fill-lavender-500 transition-colors group-hover:fill-lavender-700" pointerEvents="none" />}
               {(i === 0 || i === data.length - 1 || i === Math.floor(data.length / 2)) && (
-                <text x={x + bw / 2} y={H - 7} textAnchor="middle" fontSize="10" fill="#736c65">
+                <text x={x + bw / 2} y={H - 7} textAnchor="middle" fontSize="10" fill="#6c655e">
                   {shortDay(d.day)}
                 </text>
               )}

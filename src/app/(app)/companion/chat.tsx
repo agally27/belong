@@ -42,7 +42,7 @@ export function CompanionChat({ messages, companionName, companionStyle, canShar
 
   return (
     <div className="flex h-[calc(100dvh-16.5rem)] min-h-[26rem] flex-col rounded-3xl border border-sand/70 bg-paper shadow-soft lg:h-[calc(100dvh-13rem)]">
-      <div className="flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-6" role="log" aria-live="polite" aria-label={`Conversation with ${companionName}`}>
+      <div className="flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-6" role="log" tabIndex={0} aria-live="polite" aria-label={`Conversation with ${companionName}`}>
         {optimistic.map((m) => (
           <div key={m.id} className={cx("flex gap-3", m.role === "member" && "justify-end")}>
             {m.role === "companion" && <CompanionOrb style={companionStyle} size={32} className="mt-1" />}

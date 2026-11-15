@@ -98,7 +98,7 @@ export function SideNav({ counts, flags, onNavigate }: { counts: NavCounts; flag
     <nav aria-label="BELONG" className="space-y-5">
       {GROUPS.map((g) => (
         <div key={g.title || "main"}>
-          {g.title && <p className="mb-1.5 px-3 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-ink-300">{g.title}</p>}
+          {g.title && <p className="mb-1.5 px-3 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-ink-500">{g.title}</p>}
           <ul className="space-y-0.5">
             {g.items
               .filter((i) => !("flag" in i) || flags[i.flag] !== false)

@@ -26,7 +26,7 @@ export function MessageThread({ conversationId, messages, group, starters }: { c
 
   return (
     <div className="flex h-[calc(100dvh-17rem)] min-h-[24rem] flex-col rounded-3xl border border-sand/70 bg-paper shadow-soft lg:h-[calc(100dvh-14rem)]">
-      <div className="flex-1 space-y-3 overflow-y-auto px-4 py-5 sm:px-6" role="log" aria-live="polite" aria-label="Messages">
+      <div className="flex-1 space-y-3 overflow-y-auto px-4 py-5 sm:px-6" role="log" tabIndex={0} aria-live="polite" aria-label="Messages">
         {messages.length === 0 && <p className="py-10 text-center text-sm text-ink-500">This is the very beginning of your conversation. A simple hello is a great start.</p>}
         {messages.map((m) => (
           <div key={m.id} className={cx("flex flex-col", m.mine ? "items-end" : "items-start")}>

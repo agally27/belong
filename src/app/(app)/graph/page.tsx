@@ -40,7 +40,7 @@ export default async function GraphPage() {
       {hasAny ? (
         <>
           <Card className="overflow-hidden !p-2 sm:!p-4">
-            <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-labelledby="graph-title graph-desc" className="h-auto w-full">
+            <svg viewBox={`0 0 ${W} ${H}`} role="group" aria-labelledby="graph-title graph-desc" className="h-auto w-full">
               <title id="graph-title">Your connection graph</title>
               <desc id="graph-desc">
                 You are connected to {graph.nodes.filter((n) => n.kind === "person").length} people and {graph.nodes.filter((n) => n.kind === "circle").length} Circles. The same information is listed below the diagram.
@@ -61,7 +61,7 @@ export default async function GraphPage() {
                   <g key={i}>
                     <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={fromMe ? "#bdaede" : "#c9d8c0"} strokeWidth={fromMe ? 2 : 1.5} strokeDasharray={fromMe ? undefined : "4 5"} />
                     {fromMe && e.label && (
-                      <text x={(a.x + b.x) / 2} y={(a.y + b.y) / 2 - 6} textAnchor="middle" fontSize="11" fill="#736c65" paintOrder="stroke" stroke="#fffdf8" strokeWidth="4">
+                      <text x={(a.x + b.x) / 2} y={(a.y + b.y) / 2 - 6} textAnchor="middle" fontSize="11" fill="#6c655e" paintOrder="stroke" stroke="#fffdf8" strokeWidth="4">
                         {e.label}
                       </text>
                     )}
@@ -75,7 +75,7 @@ export default async function GraphPage() {
                 const body = (
                   <g>
                     <circle cx={p.x} cy={p.y} r={r} fill={fill} stroke={n.kind === "circle" ? "#6b8a5f" : "#fffdf8"} strokeWidth={n.kind === "circle" ? 1.5 : 3} strokeDasharray={n.kind === "circle" ? "3 4" : undefined} />
-                    <text x={p.x} y={p.y + 5} textAnchor="middle" fontSize={n.kind === "me" ? 15 : 14} fontWeight="600" fill={n.kind === "circle" ? "#435a3a" : "#fff"}>
+                    <text x={p.x} y={p.y + 5} textAnchor="middle" fontSize={n.kind === "me" ? 15 : 14} fontWeight="600" fill={n.kind === "circle" ? "#435a3a" : "#fff"} aria-hidden={n.kind !== "me"}>
                       {n.kind === "me" ? "You" : n.kind === "circle" ? "◌" : n.label.charAt(0)}
                     </text>
                     {n.kind !== "me" && (
@@ -86,7 +86,7 @@ export default async function GraphPage() {
                   </g>
                 );
                 return n.href && n.kind !== "me" ? (
-                  <a key={n.id} href={n.href} aria-label={`${n.label}${n.kind === "circle" ? " (Circle)" : ""}`}>
+                  <a key={n.id} href={n.href}>
                     {body}
                   </a>
                 ) : (

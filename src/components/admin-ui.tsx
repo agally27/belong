@@ -3,7 +3,7 @@ import { cx } from "./ui";
 
 export function Table({ head, children, empty }: { head: string[]; children: ReactNode; empty?: boolean }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-sand/70 bg-paper">
+    <div className="overflow-x-auto rounded-2xl border border-sand/70 bg-paper" tabIndex={0} role="region" aria-label="Table (scrolls sideways on small screens)">
       <table className="w-full min-w-[40rem] text-left text-sm">
         <thead>
           <tr className="border-b border-sand/70 text-xs uppercase tracking-wider text-ink-500">

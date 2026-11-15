@@ -21,6 +21,9 @@ try {
 }
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
+// Accessibility: axe-core (WCAG 2.1 A/AA) on every page visited; serious and critical issues fail the run.
+const { AxeBuilder } = require("@axe-core/playwright");
+const a11y = new Map(); // rule id -> { impact, help, pages: Set }
 const SHOTS = process.env.E2E_SHOTS === "0" ? null : "e2e-screenshots";
 if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
 
@@ -53,6 +56,11 @@ async function visit(page, path, label, { shot = true } = {}) {
   ok((await page.locator("h1").count()) >= 1, `${label}: ${path} has no <h1>`);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   ok(overflow <= 1, `${label}: ${path} overflows horizontally by ${overflow}px`);
+  const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  for (const v of axe.violations.filter((x) => x.impact === "serious" || x.impact === "critical")) {
+    if (!a11y.has(v.id)) a11y.set(v.id, { impact: v.impact, help: v.help, pages: new Set(), example: v.nodes[0]?.target?.join(" ") });
+    a11y.get(v.id).pages.add(`${label}:${path}`);
+  }
   if (SHOT_OK(shot)) await page.screenshot({ path: `${SHOTS}/${label}-${path.replace(/[^a-z0-9]+/gi, "_") || "home"}.png`, fullPage: true });
   return text;
 }
@@ -366,6 +374,9 @@ try {
   await browser.close();
 }
 
+for (const [id, v] of a11y) {
+  failures.push(`Accessibility (${v.impact}) ${id}: ${v.help} — e.g. ${v.example} — on ${[...v.pages].slice(0, 4).join(", ")}${v.pages.size > 4 ? ` and ${v.pages.size - 4} more` : ""}`);
+}
 console.log(`\n${checks} checks, ${failures.length} problem(s).`);
 if (failures.length) {
   for (const f of [...new Set(failures)]) console.log(` - ${f}`);

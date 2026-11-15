@@ -98,14 +98,14 @@ domain, deployment). **Nothing has been deployed.**
 **Content and design**
 - `/privacy`, `/terms`, `/safety` are plain-English drafts that need legal review.
 - No photography; visuals are CSS/SVG. No dark theme. English (UK) only.
-- Accessibility was built in (landmarks, labels, focus states, reduced motion, text alternatives for charts) but
-  has not been audited with assistive technology.
+- Every page passes automated WCAG 2.1 A/AA checks (axe-core, serious and critical issues fail CI) at desktop and
+  phone widths. It has not been tested with real assistive technology or by disabled users.
 
 **Environment**
 - Work is on branch `claude/kind-hamilton-jclph4`; there is no `main` yet.
 - A cloud container named `belong` could not be created from the session (see `DEVELOPMENT_LOG.md`).
 - Repository visibility could not be checked or changed from the session.
-- The CI workflow (`.github/workflows/ci.yml`) has been written but never run.
+- CI runs on every push to GitHub (lint, typecheck, tests including PostgreSQL, build, browser journey) and is passing.
 
 ## Known bugs
 

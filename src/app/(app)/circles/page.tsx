@@ -16,7 +16,7 @@ export const metadata: Metadata = { title: "Circles" };
 
 function Dots({ filled, total }: { filled: number; total: number }) {
   return (
-    <span className="flex gap-1" aria-label={`${filled} of ${total} places taken`}>
+    <span className="flex gap-1" role="img" aria-label={`${filled} of ${total} places taken`}>
       {Array.from({ length: total }, (_, i) => (
         <span key={i} className={`h-2.5 w-2.5 rounded-full ${i < filled ? "bg-sage-500" : "bg-sand"}`} />
       ))}

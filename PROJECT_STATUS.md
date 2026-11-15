@@ -48,7 +48,7 @@ domain, deployment). **Nothing has been deployed.**
 - Email verification and password reset are built, but use a local outbox until an email provider is configured;
   outside demo mode verification isn't enforced until then.
 - No two-factor authentication. Sign-in throttling is in-memory per server instance.
-- No Content-Security-Policy header yet. No independent security review has been done.
+- A strict nonce-based Content-Security-Policy is in place. No independent security review has been done.
 
 **AI**
 - The Claude adapter compiles against the current SDK but has never been run against the live API.

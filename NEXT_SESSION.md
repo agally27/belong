@@ -49,7 +49,7 @@ learning from responses (D-032–D-036). Then, at the owner's request, the match
    `listConversations`, `circles.view` and `events.view`.
 3. ~~Negation handling~~ — done 2026-11-15.
 4. ~~Password reset and email verification~~ — done 2026-11-15.
-5. **Content-Security-Policy** header in `next.config.ts`, verified with `scripts/e2e.mjs`.
+5. ~~Content-Security-Policy~~ — done 2026-11-15 (`src/proxy.ts`).
 6. Wire `scripts/e2e.mjs` into CI.
 
 If the owner HAS supplied credentials, do the matching item in `INTEGRATION_CHECKLIST.md` first.

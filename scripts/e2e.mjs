@@ -84,6 +84,12 @@ try {
       await page.goto(BASE + p, { waitUntil: "networkidle" });
       ok(new URL(page.url()).pathname === "/login", `signed-out visit to ${p} should redirect to /login (got ${page.url()})`);
     }
+    const csp1 = (await ctx.request.get(BASE + "/")).headers()["content-security-policy"] ?? "";
+    const csp2 = (await ctx.request.get(BASE + "/login")).headers()["content-security-policy"] ?? "";
+    const nonceOf = (c) => c.match(/'nonce-([^']+)'/)?.[1];
+    ok(/script-src 'self' 'nonce-[^']+' 'strict-dynamic'/.test(csp1) && /frame-ancestors 'none'/.test(csp1), "pages send a strict Content-Security-Policy");
+    ok(nonceOf(csp1) && nonceOf(csp1) !== nonceOf(csp2), "each response gets a fresh nonce");
+    ok(!/unsafe-eval/.test(csp1), "no unsafe-eval in production");
     const health = await ctx.request.get(BASE + "/api/health");
     ok(health.ok() && (await health.json()).status === "ok", "/api/health should report ok");
     ok((await ctx.request.get(BASE + "/api/account/export")).status() === 401, "data export must require sign-in");

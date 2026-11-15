@@ -54,8 +54,9 @@ present at runtime (it is included in the build's file tracing; if you copy file
 - **Logging.** Server-side errors go to stdout/stderr prefixed `[belong:action]`, `[belong:ai]`, `[belong:health]`.
   Ship them to your log platform. No error-monitoring service is integrated.
 - **Security headers** are set in `next.config.ts` (`nosniff`, `X-Frame-Options: DENY`, referrer policy, and a
-  permissions policy that disables camera, microphone and geolocation). A Content-Security-Policy is **not** yet set —
-  add one once third-party services (Stripe, analytics) are known.
+  permissions policy that disables camera, microphone and geolocation). A strict, nonce-based Content-Security-Policy is
+  set in `src/proxy.ts`. When you connect a third-party service (Stripe Checkout, analytics, error monitoring),
+  add its hosts to that policy or the browser will block it.
 - **Rate limiting.** Sign-in attempts are throttled in memory per server instance. Behind multiple instances, add
   shared rate limiting at the edge or with a shared store.
 - **Scaling the network.** `runNetwork` compares member pairs in-process. That is fine for a launch-sized community;

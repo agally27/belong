@@ -46,6 +46,9 @@ Legend: ✅ ready — just add credentials · 🔧 adapter stub — small implem
 - Everything else (plans, limits, upgrade/downgrade UI, admin pricing editor) is done. Keep Stripe prices in step with
   Admin → Subscriptions.
 
+> **Content-Security-Policy:** any third-party service that loads in the browser (Stripe Checkout, analytics,
+> error monitoring) must have its hosts added to `src/proxy.ts`, or the browser will block it.
+
 ## 5. Email ✅ (verify with a real key)
 
 - Email verification and password reset are built. Without a provider, emails go to the in-memory

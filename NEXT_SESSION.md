@@ -1,6 +1,6 @@
 # NEXT SESSION — handover
 
-_Last updated: 2026-11-13, end of session 1._
+_Last updated: 2026-11-15, session 2._
 
 ## 1. Current project state
 
@@ -40,8 +40,9 @@ reciprocity scoring, "bridge" introductions between friend groups, admin control
 
 If the owner has given no other instruction, work down this list, one commit each, without waiting for credentials:
 
-0. **Admin for the new features**: multiplier weights in Admin → Matching, a gatherings table, and a Circle-allowance
-   check in `gatheringToCircle`.
+Done 2026-11-15: task 0 (admin tuning, gatherings admin, allowance check, UK-time fix) and the feedback loop +
+learning from responses (D-032–D-036). Remaining ideas not built: reciprocity scoring, bridge introductions
+between friend groups, life-stage signals, conversation-style signals (needs live AI).
 
 1. **Host tools**: let a Circle host remove a member, and an event host edit or cancel an event
    (`services/circles.ts`, `services/events.ts`, their pages, tests in `tests/workflow.test.ts`).

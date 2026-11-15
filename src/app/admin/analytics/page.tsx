@@ -3,6 +3,7 @@ import { PrivacyNote } from "@/components/admin-ui";
 import { BarList, ColumnChart } from "@/components/charts";
 import { PageHeader, Stat } from "@/components/ui";
 import { analytics, overview } from "@/lib/services/admin";
+import { feedbackSummary } from "@/lib/services/feedback";
 import { requireAdmin } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Analytics" };
@@ -10,6 +11,7 @@ export const metadata: Metadata = { title: "Analytics" };
 export default async function AdminAnalyticsPage() {
   const admin = await requireAdmin();
   const [a, o] = [await analytics(admin.id), await overview(admin.id)];
+  const fb = await feedbackSummary();
   return (
     <div className="space-y-7">
       <PageHeader eyebrow="Insight" title="Analytics" description="First-party, aggregate counts for the last 14 days. No third-party trackers, and no message or memory content." />
@@ -29,6 +31,17 @@ export default async function AdminAnalyticsPage() {
         <BarList title="Member journey" note="How far members have progressed. Percentages are of everyone who joined." data={a.funnel} showShare />
         <BarList title="Introductions by outcome" data={a.introsByStatus} />
       </div>
+      <BarList
+        title="How meetings went"
+        note={`Private “How did it go?” answers, counted only. ${fb.met ? `${Math.round((fb.great / fb.met) * 100)}% of members who met said it was great.` : "No answers yet."}`}
+        data={[
+          { label: "Great", n: fb.great },
+          { label: "OK", n: fb.ok },
+          { label: "Not for me", n: fb.notForMe },
+          { label: "Not met yet", n: fb.notYet },
+          { label: "Won't be meeting", n: fb.didNotMeet },
+        ]}
+      />
       <PrivacyNote />
     </div>
   );

@@ -2,6 +2,7 @@ import { getDb, json, now, pair, uid } from "../db";
 import { computeMatch, reasonTexts, type MatchReason } from "../matching/engine";
 import { topicLabel } from "../matching/topics";
 import { audit, flag, forbidden, getWeights, notify } from "./core";
+import { learnedPreferences } from "./feedback";
 import { proposeGatherings, sweepGatherings } from "./gatherings";
 import { previewsById, type MemberPreview } from "./members";
 import { expireSignals, networkContexts, networkSignals, toMatchSignal } from "./signals";
@@ -48,6 +49,7 @@ export async function runNetwork(opts: { forUserId?: string; actorId?: string | 
   const liveOn = await flag("live_intelligence");
   const ids = [...byUser.keys()].sort();
   const contexts = await networkContexts();
+  const learned = await learnedPreferences();
 
   // Rarity: sharing an unusual interest says more than sharing a very common one.
   const holders = new Map<string, number>();
@@ -101,7 +103,14 @@ export async function runNetwork(opts: { forUserId?: string; actorId?: string | 
           .get(id)!
           .map(toMatchSignal)
           .filter((s) => liveOn || !s.temporary);
-      const m = computeMatch(prep(a), prep(b), weights, undefined, undefined, { a: contexts.get(a), b: contexts.get(b), rarity, mutuals: mutualCount(a, b) });
+      const m = computeMatch(prep(a), prep(b), weights, undefined, undefined, {
+        a: contexts.get(a),
+        b: contexts.get(b),
+        rarity,
+        mutuals: mutualCount(a, b),
+        learnedA: learned.get(a),
+        learnedB: learned.get(b),
+      });
       const prev = existing.get(key);
       if (m.score < weights.threshold || !m.reasons.length) {
         if (prev && prev.status === "suggested") {
@@ -207,7 +216,7 @@ async function toView(userId: string, rows: MatchRow[]): Promise<MatchView[]> {
       score: Number(r.score),
       dimensions: json(r.dimensions, { shared: 0, moments: 0, complementary: 0 }),
       reasons: [
-        ...reasons.map((x, i) => ({ dimension: x.dimension, text: texts[i], topics: x.topics })),
+        ...reasons.map((x, i) => ({ dimension: x.dimension, text: texts[i], topics: x.topics })).filter((x) => x.text),
         ...(shared.length
           ? [{ dimension: "context" as const, topics: [], text: named.length ? `You both know ${named.slice(0, 2).join(" and ")}` : `You have ${shared.length === 1 ? "a connection" : `${shared.length} connections`} in common` }]
           : []),

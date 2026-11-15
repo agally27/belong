@@ -68,7 +68,21 @@ export interface MemberContext {
   onlineOk?: boolean;
 }
 
+/**
+ * What one member's own behaviour suggests about their preferences, as
+ * key → -1 … 1. Keys are topic ids and "dim:<dimension>". Computed outside the
+ * engine from that member's own responses; never shared with the other member.
+ */
+export interface LearnedPreferences {
+  /** From accepting or dismissing past suggestions. */
+  history?: Record<string, number>;
+  /** From private "How did it go?" answers after meeting. */
+  feedback?: Record<string, number>;
+}
+
 export interface MatchOptions {
+  learnedA?: LearnedPreferences;
+  learnedB?: LearnedPreferences;
   a?: MemberContext;
   b?: MemberContext;
   /** Rarity weight for a topic: > 1 for unusual interests, < 1 for very common ones. */
@@ -381,6 +395,24 @@ export function computeMatch(
   // People in common: a friend of a friend is an easier first hello.
   const mutuals = Math.max(0, options.mutuals ?? 0);
   if (mutuals) multiplier *= 1 + k.mutuals * Math.min(0.15, 0.08 * mutuals);
+
+  // Learning: each member's own past responses and meeting feedback. A small, bounded nudge,
+  // and any explanation is shown only to the member it is about.
+  const keys = [...topics, ...new Set(main.map((r) => `dim:${r.dimension}`))];
+  const lean = (rec?: Record<string, number>) => {
+    const vals = keys.map((t) => rec?.[t]).filter((v): v is number => typeof v === "number");
+    return vals.length ? Math.max(-1, Math.min(1, vals.reduce((x, y) => x + y, 0) / vals.length)) : 0;
+  };
+  const hist = (lean(options.learnedA?.history) + lean(options.learnedB?.history)) / 2;
+  multiplier *= Math.max(0.5, 1 + 0.1 * k.history * hist);
+  const fa = lean(options.learnedA?.feedback);
+  const fb = lean(options.learnedB?.feedback);
+  multiplier *= Math.max(0.5, 1 + 0.15 * k.feedback * ((fa + fb) / 2));
+  const firstTopic = topics.find((t) => !t.includes(":"));
+  const enjoyed = (f: number) => (f > 0.3 && firstTopic ? `Like people you've enjoyed meeting before through ${topicLabel(firstTopic)}` : "");
+  if (k.feedback > 0 && (enjoyed(fa) || enjoyed(fb))) {
+    extra.push({ dimension: "context", topics: [], text: enjoyed(fa), textB: enjoyed(fb), weight: 0 });
+  }
 
   const score = Math.round(Math.min(1, base * multiplier) * 100);
   return {

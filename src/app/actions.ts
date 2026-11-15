@@ -13,6 +13,7 @@ import * as circles from "@/lib/services/circles";
 import * as companion from "@/lib/services/companion";
 import { AppError, setConsent, track } from "@/lib/services/core";
 import * as events from "@/lib/services/events";
+import * as feedback from "@/lib/services/feedback";
 import * as gatherings from "@/lib/services/gatherings";
 import * as intros from "@/lib/services/introductions";
 import * as memory from "@/lib/services/memory";
@@ -465,6 +466,20 @@ export async function gatheringToCircleAction(_: ActionState, f: FormData): Prom
   }
   revalidatePath("/", "layout");
   redirect(`/circles/${id}`);
+}
+
+export async function giveFeedbackAction(_: ActionState, f: FormData): Promise<ActionState> {
+  const user = await requireUser();
+  return run(async () => {
+    const [metRaw, ratingRaw] = (str(f, "answer") || `${str(f, "met")}:${str(f, "rating")}`).split(":");
+    const met = metRaw as feedback.Met;
+    const rating = (ratingRaw || null) as feedback.Rating | null;
+    await feedback.giveFeedback(user.id, str(f, "subjectType") as never, str(f, "subjectId"), met, rating);
+    await network.runNetwork({ forUserId: user.id, actorId: user.id, quiet: true });
+    if (rating === "not_for_me") return "Thanks for telling us. If anything made you uncomfortable, you can block or report from their profile or the chat.";
+    if (met === "not_yet") return "No problem — we'll ask again in a week or so.";
+    return "Thank you. Your companion will use this to suggest people you'll enjoy.";
+  });
 }
 
 /* -------------------------- notifications & support ------------------------- */

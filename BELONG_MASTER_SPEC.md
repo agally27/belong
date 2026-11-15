@@ -123,6 +123,12 @@ matcher today, `embeddingMatcher()` when an embeddings provider is configured.
 | Timing | Overlapping free slots +5–12%; none in common −15%. | Availability signals |
 | Friends of friends | +8% per mutual connection (max +15%). Named only if all three allow it. | Connections, with `mutual_connections` consent |
 
+| Learning from responses | ±10%: leans toward topics and dimensions a member has said yes to, away from those they dismissed. | That member's own past responses |
+| After-meeting feedback | ±15%: leans toward topics that led to good meetings for that member. | Private "How did it go?" answers |
+
+Every factor's strength is adjustable in Admin → Matching (0 off, 1 default, 2 double). Reasons based on a member's
+own learned preferences are shown only to that member.
+
 Members set a postcode district, a travel radius (2–50 miles) and "open to online" in their profile. Distance is
 only ever described in vague bands ("a few miles away").
 

@@ -192,7 +192,7 @@ export async function listIntroductions(userId: string): Promise<IntroductionVie
       theirDecision: (iAmA ? r.b_decision : r.a_decision) as IntroductionView["theirDecision"],
       // A personal note is only shown to its recipient while pending or once connected.
       note: r.note,
-      reasons: reasonTexts(json<MatchReason[]>(r.reasons, []), iAmA),
+      reasons: reasonTexts(json<MatchReason[]>(r.reasons, []), iAmA).filter(Boolean),
       createdAt: r.created_at,
       connectionId: conv?.connection_id ?? null,
       conversationId: conv?.id ?? null,

@@ -66,3 +66,20 @@ PostgreSQL run of the seeded journey re-verified with the new migration.
 
 **Not done** — real calendar sync (needs provider credentials); venue suggestions (needs a places provider);
 recurring gatherings other than via a Circle; licence confirmation for the bundled district data (owner to check).
+
+## 2026-11-15 · Session 2 — admin tuning, feedback loop and learning
+
+**Built**
+- Admin → Matching: adjustable strengths for distance, rarity, social style, free time, friends of friends,
+  learning from responses and after-meeting feedback.
+- Admin → Gatherings: counts-only list with cancel (everyone invited is notified).
+- Fixes: gathering times in UK local time (were an hour late in summer); gathering → Circle respects allowances.
+- Migration `0003_feedback.sql`; `services/feedback.ts`: private "How did it go?" prompts on the dashboard,
+  learned preferences from responses and feedback, "What your companion has learned from you" on Memories,
+  feedback in data export, aggregate "How meetings went" in Admin → Analytics.
+
+**Bug found and fixed in the browser run** — after answering a feedback question the card disappeared before the
+thank-you could show; cards now stay on screen with the acknowledgement.
+
+**Tests** — new `tests/admin-tuning.test.ts` (7) and `tests/feedback.test.ts` (5). Total 93 passed, 1 skipped;
+PostgreSQL journey passes with all three migrations; browser run 421 checks, 0 problems.

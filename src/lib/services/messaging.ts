@@ -208,7 +208,7 @@ export async function connectionAssistant(userId: string, conversationId: string
   let reasons: string[] = [];
   if (access.introductionId) {
     const intro = await db.get<{ reasons: string; user_a: string }>("SELECT reasons, user_a FROM introductions WHERE id = ?", [access.introductionId]);
-    if (intro) reasons = reasonTexts(json<MatchReason[]>(intro.reasons, []), intro.user_a === userId);
+    if (intro) reasons = reasonTexts(json<MatchReason[]>(intro.reasons, []), intro.user_a === userId).filter(Boolean);
   }
   const other = (await previewsById([access.otherId])).get(access.otherId);
   const ai = await getAIProvider();

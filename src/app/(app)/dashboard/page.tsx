@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, CalendarHeart, CircleDot, Radio } from "lucide-react";
 import { IntroductionCard, MatchCard } from "@/components/cards";
+import { FeedbackPrompts } from "@/components/feedback";
+import { pendingFeedback } from "@/lib/services/feedback";
 import { Badge, Card, CompanionOrb, EmptyState, LinkButton, SectionTitle, SimulatedBadge, Stat, formatDateTime } from "@/components/ui";
 import { env } from "@/lib/config";
 import { aiStatus } from "@/lib/services/companion";
@@ -35,6 +37,7 @@ export default async function DashboardPage() {
     await listIntentions(user.id),
     await aiStatus(),
   ];
+  const feedbackDue = await pendingFeedback(user.id);
   const name = profile?.displayName.split(" ")[0] ?? "there";
   const awaitingMe = intros.filter((i) => i.status === "pending" && i.myDecision === "pending");
   const fresh = matches.filter((m) => !m.introduction);
@@ -84,6 +87,8 @@ export default async function DashboardPage() {
         <Stat label="Connections" value={connections.length} hint="people you've met" />
         <Stat label="Circles" value={circles.mine.length} hint="you belong to" />
       </section>
+
+      <FeedbackPrompts prompts={feedbackDue} />
 
       {awaitingMe.length > 0 && (
         <section>

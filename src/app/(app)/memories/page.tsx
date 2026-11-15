@@ -17,6 +17,7 @@ import { ActionButton, ActionForm, AutoSwitch, SubmitButton } from "@/components
 import { Badge, Card, EmptyState, Field, LinkButton, Notice, PageHeader, SectionTitle, buttonClass, timeAgo } from "@/components/ui";
 import { MEMORY_CATEGORIES } from "@/lib/config";
 import { getConsents } from "@/lib/services/core";
+import { myLearning } from "@/lib/services/feedback";
 import { listIntentions, listMemories, type Memory } from "@/lib/services/memory";
 import { getCompanion } from "@/lib/services/profile";
 import { requireMember } from "@/lib/session";
@@ -81,6 +82,7 @@ function MemoryItem({ m }: { m: Memory }) {
 export default async function MemoriesPage() {
   const user = await requireMember();
   const [memories, intentions, companion, consents] = [await listMemories(user.id), await listIntentions(user.id, true), await getCompanion(user.id), await getConsents(user.id)];
+  const learning = await myLearning(user.id);
   const proposed = memories.filter((m) => m.status === "proposed");
   const active = memories.filter((m) => m.status === "active");
   const proposedIntentions = intentions.filter((i) => i.status === "proposed");
@@ -146,6 +148,27 @@ export default async function MemoriesPage() {
             ))}
           </ul>
         </section>
+      )}
+
+      {(learning.likes.length > 0 || learning.lessLikely.length > 0) && (
+        <Card className="bg-gradient-to-br from-lavender-50 to-paper">
+          <h2 className="text-lg text-charcoal">What {companion.name} has learned from you</h2>
+          <p className="mt-1 text-sm text-ink-500">From the suggestions you&apos;ve said yes or no to{learning.given ? " and how your meetings went" : ""}. It gently shapes who {companion.name} suggests — it&apos;s never shared with anyone.</p>
+          <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+            {learning.likes.length > 0 && (
+              <p>
+                <span className="text-ink-500">More of: </span>
+                <span className="capitalize text-charcoal">{learning.likes.join(", ")}</span>
+              </p>
+            )}
+            {learning.lessLikely.length > 0 && (
+              <p>
+                <span className="text-ink-500">Less of: </span>
+                <span className="capitalize text-charcoal">{learning.lessLikely.join(", ")}</span>
+              </p>
+            )}
+          </div>
+        </Card>
       )}
 
       <section>

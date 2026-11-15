@@ -33,6 +33,7 @@ export default function PrivacyPage() {
           <li>We never track your precise location. We keep only the area name and postcode district (such as “BS3”) you choose to give, and other members never see your district.</li>
           <li>We never sell your personal data.</li>
           <li>We never introduce you to anyone without your approval and theirs.</li>
+          <li>We never tell anyone how you said a meeting went. Your answer only tunes your own suggestions.</li>
         </ul>
       </section>
       <section>

@@ -1,3 +1,4 @@
+import { env } from "../config";
 import { getDb, json, now, pair, uid } from "../db";
 import { reasonTexts, type MatchReason } from "../matching/engine";
 import { AppError, audit, flag, forbidden, isBlockedPair, notFound, notify, track } from "./core";
@@ -210,7 +211,7 @@ export async function listIntroductions(userId: string): Promise<IntroductionVie
  * off entirely by the demo_simulation flag or BELONG_DEMO_MODE=false.
  */
 export async function simulateDemoResponse(actorId: string, introId: string, decision: "approved" | "declined" = "approved") {
-  if (process.env.BELONG_DEMO_MODE === "false" || !(await flag("demo_simulation"))) throw forbidden("Demo simulation is switched off.");
+  if (!env.demoMode() || !(await flag("demo_simulation"))) throw forbidden("Demo simulation is switched off.");
   const intro = await loadIntro(actorId, introId);
   const other = intro.user_a === actorId ? intro.user_b : intro.user_a;
   const db = await getDb();

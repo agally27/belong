@@ -15,7 +15,7 @@ Fly.io, a container platform or a VM.
 
 ```
 DATABASE_URL=postgres://…
-BELONG_DEMO_MODE=false
+# BELONG_DEMO_MODE stays unset: demo mode is off whenever DATABASE_URL is set
 NEXT_PUBLIC_APP_URL=https://your-domain
 ANTHROPIC_API_KEY=…            # for the live companion; otherwise the simulation is used
 CRON_SECRET=…                  # long random string
@@ -23,7 +23,7 @@ CRON_SECRET=…                  # long random string
 
 ## Steps
 
-1. **Database.** Create it and run migrations (`npm run db:migrate` with `DATABASE_URL` and `BELONG_DEMO_MODE=false`).
+1. **Database.** Create it and run migrations (`npm run db:migrate` with `DATABASE_URL` set).
 2. **Build and start.**
    ```bash
    npm ci
@@ -37,11 +37,31 @@ CRON_SECRET=…                  # long random string
 7. **Smoke test.** Sign in, chat with the companion, open Admin → Overview and confirm the service status panel shows
    PostgreSQL and (if configured) Claude.
 
-### Vercel
+### Vercel + Supabase (recommended)
 
-Import the repository, add the environment variables, deploy. Use a pooled `DATABASE_URL`. Add a Vercel Cron job for
-`/api/cron/network` (Vercel sends the `CRON_SECRET` bearer header automatically when that variable is set).
-SQLite cannot be used there — the filesystem is not persistent.
+`vercel.json` already sets the London region (`lhr1`) and a daily run of the matching network.
+
+1. **Supabase**: create a project in the **London** region. In Project settings → Database, copy the connection
+   string for the **connection pooler** (Vercel opens many short-lived connections; the pooler handles that).
+2. **Vercel**: Add New → Project → import the GitHub repository. Framework is detected as Next.js; no build
+   settings need changing.
+3. **Environment variables** (Production): `DATABASE_URL` (the pooler string), `APP_URL` (your public URL, e.g.
+   `https://belong.example`), `CRON_SECRET` (a long random string), and when ready `ANTHROPIC_API_KEY` and the email
+   settings. **Don't set `BELONG_DEMO_MODE`** — on Vercel production it is off by default.
+4. **Deploy.** Migrations apply on first start (safely, even if several instances start together). Or run them
+   beforehand: `DATABASE_URL=… npm run db:migrate`.
+5. **First administrator**: register on the live site, then `DATABASE_URL=… npm run db:make-admin -- you@example.com`.
+6. **Domain**: Vercel → Settings → Domains. Then update `APP_URL` to match.
+7. **Check**: `https://<your-domain>/api/health` should report `"database":"postgres"` and `"demoMode":false`.
+
+Notes:
+- **Cron frequency.** The Hobby (free) plan only allows a cron once a day, and Vercel rejects a deployment with
+  anything more frequent — so `vercel.json` runs at 04:17 UTC daily. On Pro, change the schedule to
+  `"*/15 * * * *"` for fresher matching. Matching also runs whenever a member changes what they share, so daily is
+  workable at launch.
+- **Previews.** Preview deployments with a database are also non-demo unless you set `BELONG_DEMO_MODE=true` on the
+  Preview environment (useful for a shareable demo, but use a separate database).
+- **No database set?** The app fails with a clear "DATABASE_URL is not set" message: SQLite can't work on Vercel.
 
 ### Containers / VMs
 
@@ -61,7 +81,7 @@ present at runtime (it is included in the build's file tracing; if you copy file
   shared rate limiting at the edge or with a shared store.
 - **Scaling the network.** `runNetwork` compares member pairs in-process. That is fine for a launch-sized community;
   see "Known limitations" in `PROJECT_STATUS.md` for the scaling path.
-- **Demo mode.** Double-check `BELONG_DEMO_MODE=false`. In demo mode the sign-in page offers one-click access to a
+- **Demo mode.** Check `/api/health` reports `"demoMode":false` (the default with a real database). In demo mode the sign-in page offers one-click access to a
   demo administrator.
 
 ## Pre-launch checklist

@@ -8,7 +8,17 @@ export const APP = {
 } as const;
 
 export const env = {
-  demoMode: () => process.env.BELONG_DEMO_MODE !== "false",
+  /**
+   * Demo mode (fictional members, one-click demo sign-in, simulated replies, dev outbox).
+   * An explicit BELONG_DEMO_MODE=true/false always wins. Otherwise it is OFF on a Vercel
+   * production deployment or whenever a real database is connected, and ON for local development.
+   */
+  demoMode: () => {
+    const v = process.env.BELONG_DEMO_MODE;
+    if (v === "true") return true;
+    if (v === "false") return false;
+    return !(process.env.VERCEL_ENV === "production" || process.env.DATABASE_URL);
+  },
   isProd: () => process.env.NODE_ENV === "production",
   aiProvider: () => (process.env.ANTHROPIC_API_KEY && process.env.BELONG_AI_PROVIDER !== "mock" ? "claude" : "mock"),
   claudeModel: () => process.env.BELONG_CLAUDE_MODEL ?? "claude-opus-5-5",

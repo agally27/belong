@@ -13,11 +13,11 @@ npm run db:reset      # delete the local database and start again
 
 1. Create a database (Supabase project, or any PostgreSQL 14+).
 2. Set `DATABASE_URL`. On serverless hosts use Supabase's connection **pooler** string.
-3. Set `BELONG_DEMO_MODE=false`.
+3. Leave `BELONG_DEMO_MODE` unset — demo mode is off by default once `DATABASE_URL` is set.
 4. Start the app (migrations apply automatically), or run them yourself first:
 
    ```bash
-   DATABASE_URL=... BELONG_DEMO_MODE=false npm run db:migrate
+   DATABASE_URL=... npm run db:migrate
    ```
 
    and set `BELONG_AUTO_MIGRATE=false` if you prefer the app never to migrate on start.

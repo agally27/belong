@@ -1,3 +1,4 @@
+import { env } from "../config";
 import { getDb, json, now, pair, uid } from "../db";
 import { mockConnectionIdeas } from "../ai/mock";
 import { milesBetween } from "../geo";
@@ -383,7 +384,7 @@ export async function gatheringToCircle(userId: string, gatheringId: string, nam
 
 /** DEMO ONLY: fictional invitees answer, so the flow can be shown end to end. */
 export async function simulateDemoGathering(actorId: string, gatheringId: string) {
-  if (process.env.BELONG_DEMO_MODE === "false" || !(await flag("demo_simulation"))) throw forbidden("Demo simulation is switched off.");
+  if (!env.demoMode() || !(await flag("demo_simulation"))) throw forbidden("Demo simulation is switched off.");
   await invite(actorId, gatheringId);
   const db = await getDb();
   const waiting = await db.all<{ user_id: string }>(

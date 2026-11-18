@@ -124,3 +124,12 @@ PostgreSQL journey passes with all three migrations; browser run 421 checks, 0 p
   Browser run: 446 checks, 0 problems, 0 serious/critical accessibility issues.
 - Admin → Circles shows removals by hosts with repeat counts. Tests 121 passed, 1 skipped; CI run 16 (with
   accessibility checks) passed on GitHub.
+
+## 2026-11-18 · Session 2 (continued) — Vercel readiness
+
+- `vercel.json` (London region, daily network cron — Vercel's Hobby limit, checked against Vercel's docs).
+- Demo mode now defaults off on Vercel production or with `DATABASE_URL` (D-051); clear error if `DATABASE_URL` is
+  missing on Vercel; migrations safe under concurrent cold starts (D-052).
+- `docs/DEPLOYMENT.md` rewritten as a Vercel + Supabase step-by-step.
+- Tests: `tests/deploy-config.test.ts` (2); PostgreSQL test now runs four migrators at once. Total 123 passed, 1 skipped.
+- **Not done:** no actual Vercel or Supabase deployment (needs the owner's accounts).

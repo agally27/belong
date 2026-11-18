@@ -33,7 +33,8 @@ The sign-in page also has one-click buttons for both. Or register a new account 
 journey yourself: onboarding → companion → approve a signal → Discover → introduction → messaging.
 Fictional members can be asked to "answer" an introduction through a clearly labelled demo control.
 
-> Demo accounts exist only while `BELONG_DEMO_MODE` is not `false`. Never run production in demo mode.
+> Demo mode is on for local development and off by default on Vercel production or whenever a real database
+> (`DATABASE_URL`) is connected. Never run production in demo mode — check `/api/health` shows `"demoMode":false`.
 
 ## Commands
 

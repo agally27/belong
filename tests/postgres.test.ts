@@ -31,6 +31,13 @@ describe.skipIf(!url)("PostgreSQL driver", () => {
       await db.exec("DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
       expect(await migrate(db)).toEqual(["0001_init.sql", "0002_local_and_gatherings.sql", "0003_feedback.sql", "0004_host_tools.sql", "0005_life_stage_and_bridges.sql", "0006_account_tokens.sql"]);
       expect(await migrate(db)).toEqual([]); // idempotent
+      // Several instances starting at once (e.g. serverless cold starts) don't trip over each other.
+      await db.exec("DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
+      const others = await Promise.all([createPostgresDb(url!), createPostgresDb(url!), createPostgresDb(url!)]);
+      const results = await Promise.all([db, ...others].map((d) => migrate(d)));
+      expect(results.flat().sort()).toEqual(results.find((r) => r.length)!.slice().sort());
+      expect(results.filter((r) => r.length).length).toBe(1);
+      await Promise.all(others.map((d) => d.close()));
       await withDb(db, async () => {
         await ensureBaseline(db);
         await seedDemo(db);

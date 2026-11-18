@@ -7,7 +7,8 @@ Legend: ✅ ready — just add credentials · 🔧 adapter stub — small implem
 
 ## Before anything else
 
-- [ ] Set `BELONG_DEMO_MODE=false` in production (removes demo accounts, demo sign-in buttons and simulated member replies).
+- [ ] Make sure demo mode is off in production. It is **off by default** on Vercel production and whenever `DATABASE_URL`
+  is set; only an explicit `BELONG_DEMO_MODE=true` turns it on. Check `/api/health` shows `"demoMode":false`.
 - [ ] Register your own account, then promote it: `npm run db:make-admin -- you@example.com` (run with the production `DATABASE_URL`).
 - [ ] Decide the default branch. Development was pushed to `claude/kind-hamilton-jclph4`; merge or rename it to `main` in GitHub.
 - [ ] Confirm the GitHub repository is private (Settings → General → Danger zone). This was not verifiable from the development environment.
@@ -78,13 +79,15 @@ Legend: ✅ ready — just add credentials · 🔧 adapter stub — small implem
 
 ## 9. Scheduled network run ✅
 
-- Provide: `CRON_SECRET`, and a scheduler calling `POST /api/cron/network` with `Authorization: Bearer <secret>` every
-  10–15 minutes. This expires temporary signals and refreshes matches. (The network also runs whenever a member
-  changes what they share.)
+- Provide: `CRON_SECRET`. On Vercel, `vercel.json` already schedules `/api/cron/network` daily (the Hobby plan's
+  limit); on Pro, change it to every 15 minutes. Elsewhere, call `GET` or `POST /api/cron/network` with
+  `Authorization: Bearer <secret>` every 10–15 minutes. This expires temporary signals, refreshes matches, proposes
+  get-togethers and sends day-before reminders. (Matching also runs whenever a member changes what they share.)
 
 ## 10. Hosting, domain and secrets 📝
 
-- See `docs/DEPLOYMENT.md`. Set `NEXT_PUBLIC_APP_URL` to the public URL. Store secrets in the host's secret manager.
+- Recommended: **Vercel + Supabase, both in London** — step-by-step in `docs/DEPLOYMENT.md`. Set `APP_URL` to the
+  public URL. Store secrets in Vercel's environment variables.
 - Health check: `GET /api/health`.
 
 ## 11. External analytics / error monitoring 🔧 (optional)
@@ -105,7 +108,7 @@ Legend: ✅ ready — just add credentials · 🔧 adapter stub — small implem
 | Variable | Required in production | Purpose |
 | --- | --- | --- |
 | `DATABASE_URL` | Yes | PostgreSQL/Supabase connection string |
-| `BELONG_DEMO_MODE` | Yes (`false`) | Disables all demo behaviour |
+| `BELONG_DEMO_MODE` | No | Leave unset in production (defaults off on Vercel production or with `DATABASE_URL`); `true` forces demo on |
 | `APP_URL` | Yes | Public base URL used in email links (read at runtime) |
 | `NEXT_PUBLIC_APP_URL` | Optional | Same, fixed at build time |
 | `EMAIL_PROVIDER`, `EMAIL_API_KEY`, `EMAIL_FROM` | Yes, for launch | Verification and password-reset emails (Resend) |

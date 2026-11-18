@@ -1,3 +1,4 @@
+import { env } from "../config";
 import { getDb, json, now, placeholders, uid } from "../db";
 import { getAIProvider } from "../ai";
 import { topicLabel } from "../matching/topics";
@@ -196,7 +197,7 @@ export async function sendMessage(userId: string, conversationId: string, conten
     // Notification carries no message content.
     await notify(access.otherId, "message", "New message", "You have a new message from a connection.", `/messages/${conversationId}`);
     const other = await db.get<{ is_demo: number }>("SELECT is_demo FROM users WHERE id = ?", [access.otherId]);
-    if (other?.is_demo && process.env.BELONG_DEMO_MODE !== "false" && (await flag("demo_simulation"))) {
+    if (other?.is_demo && env.demoMode() && (await flag("demo_simulation"))) {
       const n = await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM messages WHERE conversation_id = ?", [conversationId]);
       const topic = access.sharedTopics[0];
       const reply =

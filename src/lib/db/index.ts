@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import type { Db } from "./types";
 import { createSqliteDb } from "./sqlite";
 import { migrate } from "./migrate";
+import { env } from "../config";
 
 export type { Db, Param } from "./types";
 
@@ -21,13 +22,16 @@ async function init(): Promise<Db> {
   if (url) {
     const { createPostgresDb } = await import("./postgres");
     db = await createPostgresDb(url);
+  } else if (process.env.VERCEL) {
+    // Vercel's filesystem is read-only and temporary, so the local SQLite file can't work there.
+    throw new Error("DATABASE_URL is not set. On Vercel, BELONG needs a PostgreSQL database (e.g. Supabase) — see docs/DEPLOYMENT.md.");
   } else {
     db = createSqliteDb(process.env.DATABASE_FILE ?? "./data/belong.db");
   }
   if (process.env.BELONG_AUTO_MIGRATE !== "false") await migrate(db);
   const { ensureBaseline } = await import("../seed/baseline");
   await withDb(db, () => ensureBaseline(db));
-  if (process.env.BELONG_DEMO_MODE !== "false") {
+  if (env.demoMode()) {
     const { seedIfEmpty } = await import("../seed");
     await withDb(db, () => seedIfEmpty(db));
   }

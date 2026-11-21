@@ -34,7 +34,7 @@ export default function PrivacyPage() {
           <li>We never sell your personal data.</li>
           <li>We never introduce you to anyone without your approval and theirs.</li>
           <li>We never tell anyone how you said a meeting went. Your answer only tunes your own suggestions.</li>
-          <li>We only send notification emails you've asked for, and they never contain messages, memories or your companion conversation.</li>
+          <li>We only send notification emails you&apos;ve asked for, and they never contain messages, memories or your companion conversation.</li>
         </ul>
       </section>
       <section>

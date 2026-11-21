@@ -40,8 +40,7 @@ reset, a nonce-based CSP, pagination/batching, and the browser journey in CI. De
 If the owner has given no other instruction, work down this list, one commit each, without waiting for credentials:
 
 1. ~~Automated accessibility checks~~ — done 2026-11-15 (axe-core in `scripts/e2e.mjs`; fixes in D-049).
-2. **Notification emails** (opt-in per type, e.g. new introduction, gathering confirmed) through the existing email
-   adapter, with an unsubscribe link and a daily-digest option. Respect `marketing_emails` only for marketing.
+2. ~~Notification emails~~ — done 2026-11-21 (D-053–D-055).
 3. ~~Vercel readiness~~ — done 2026-11-18 (D-050–D-052). A Dockerfile is only needed if the owner leaves Vercel.
 4. ~~Admin view of host removals~~ — done 2026-11-15 (Admin → Circles).
 5. Ideas still open with the owner: conversation-style signals (needs the live AI), bridges between informal friend

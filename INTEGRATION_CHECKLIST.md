@@ -60,7 +60,9 @@ Legend: ✅ ready — just add credentials · 🔧 adapter stub — small implem
   Verification then becomes required before members can ask for introductions, join Circles or accept get-togethers.
 - The Resend adapter (`src/lib/adapters/notifications.ts`) follows Resend's documented HTTP API but **has not been
   tested with a live key**. To use another provider, add it next to Resend in `getEmailProvider()`.
-- Not yet emailed: notification digests (in-app only for now).
+- Optional notification emails are built too (opt-in per category, instantly or as a daily summary, one-click
+  unsubscribe with `List-Unsubscribe` headers). They start working as soon as email is configured. Daily summaries are
+  sent by the scheduled network run (`/api/cron/network`), so that needs `CRON_SECRET` set.
 
 ## 6. Push notifications 🔧 (optional)
 

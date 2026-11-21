@@ -5,8 +5,8 @@ _Last updated: 2026-11-15 · life stages, reciprocity and bridges added_
 ## Summary
 
 All 27 modules in the specification are built and working locally with no external credentials.
-Verified by: 121 automated tests, a real-browser run of the whole member journey plus every page at desktop and
-phone widths (446 checks), a clean lint/typecheck/production build, and the seeded journey on PostgreSQL 16.
+Verified by: 130 automated tests, a real-browser run of the whole member journey plus every page at desktop and
+phone widths (458 checks), a clean lint/typecheck/production build, and the seeded journey on PostgreSQL 16.
 
 **Not done, by design:** production services (database hosting, Claude key, Stripe, email, push, maps, storage,
 domain, deployment). **Nothing has been deployed.**
@@ -69,7 +69,8 @@ domain, deployment). **Nothing has been deployed.**
 - Reciprocity and learning have no effect until real members have answered introductions; they cannot be
   meaningfully evaluated on demo data.
 - Bridges only connect Circles, not informal friend clusters in the connection graph.
-- Feedback prompts appear on the dashboard only (no email/push reminder until those providers exist).
+- Feedback prompts appear on the dashboard only (not emailed). Optional notification emails exist but need an email
+  provider to leave the development outbox; there are no push notifications.
 
 **Matching and network**
 - Interests outside the taxonomy are not matched until the taxonomy is extended or embeddings are connected.

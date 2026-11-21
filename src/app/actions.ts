@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import type { ActionState } from "@/components/forms";
@@ -13,6 +14,7 @@ import * as circles from "@/lib/services/circles";
 import * as companion from "@/lib/services/companion";
 import { AppError, setConsent, track } from "@/lib/services/core";
 import { londonToIso } from "@/lib/time";
+import * as emails from "@/lib/services/email-notifications";
 import * as events from "@/lib/services/events";
 import * as feedback from "@/lib/services/feedback";
 import * as gatherings from "@/lib/services/gatherings";
@@ -41,9 +43,21 @@ function fail(e: unknown): ActionState {
 }
 
 /** Runs a mutation, converts known errors to form state, and refreshes the page data. */
+/** Send any queued notification emails once the response has gone out. */
+function sendEmailsAfter() {
+  after(async () => {
+    try {
+      await emails.flushEmailOutbox();
+    } catch (e) {
+      console.error("[belong:email] flush failed", e);
+    }
+  });
+}
+
 async function run(fn: () => Promise<string | void>): Promise<ActionState> {
   try {
     const message = await fn();
+    sendEmailsAfter();
     revalidatePath("/", "layout");
     return { ok: true, message: message || undefined };
   } catch (e) {
@@ -181,6 +195,7 @@ export async function completeOnboardingAction(_: ActionState, f: FormData): Pro
   } catch (e) {
     return fail(e);
   }
+  sendEmailsAfter();
   revalidatePath("/", "layout");
   redirect("/companion?welcome=1");
 }
@@ -396,6 +411,7 @@ export async function blockUserAction(_: ActionState, f: FormData): Promise<Acti
   } catch (e) {
     return fail(e);
   }
+  sendEmailsAfter();
   revalidatePath("/", "layout");
   redirect("/connections?blocked=1");
 }
@@ -430,6 +446,7 @@ export async function createCircleAction(_: ActionState, f: FormData): Promise<A
   } catch (e) {
     return fail(e);
   }
+  sendEmailsAfter();
   revalidatePath("/", "layout");
   redirect(`/circles/${id}`);
 }
@@ -446,6 +463,7 @@ export async function leaveCircleAction(_: ActionState, f: FormData): Promise<Ac
   } catch (e) {
     return fail(e);
   }
+  sendEmailsAfter();
   revalidatePath("/", "layout");
   redirect("/circles");
 }
@@ -467,6 +485,7 @@ export async function createEventAction(_: ActionState, f: FormData): Promise<Ac
   } catch (e) {
     return fail(e);
   }
+  sendEmailsAfter();
   revalidatePath("/", "layout");
   redirect(`/events/${id}`);
 }
@@ -497,6 +516,7 @@ export async function cancelEventAction(_: ActionState, f: FormData): Promise<Ac
   } catch (e) {
     return fail(e);
   }
+  sendEmailsAfter();
   revalidatePath("/", "layout");
   redirect("/events?cancelled=1");
 }
@@ -527,6 +547,7 @@ export async function gatheringToCircleAction(_: ActionState, f: FormData): Prom
   } catch (e) {
     return fail(e);
   }
+  sendEmailsAfter();
   revalidatePath("/", "layout");
   redirect(`/circles/${id}`);
 }
@@ -543,6 +564,25 @@ export async function giveFeedbackAction(_: ActionState, f: FormData): Promise<A
     if (met === "not_yet") return "No problem — we'll ask again in a week or so.";
     return "Thank you. Your companion will use this to suggest people you'll enjoy.";
   });
+}
+
+export async function setEmailPreferencesAction(_: ActionState, f: FormData): Promise<ActionState> {
+  const user = await requireUser();
+  return run(async () => {
+    await emails.setEmailPreferences(user.id, { categories: list(f, "categories"), frequency: str(f, "frequency") });
+    return "Email preferences saved.";
+  });
+}
+
+/** Works without signing in: the signed link is the proof. */
+export async function unsubscribeAction(_: ActionState, f: FormData): Promise<ActionState> {
+  try {
+    const res = await emails.unsubscribe(str(f, "token"));
+    if (!res) return { error: "This unsubscribe link isn't valid. You can change your emails in Settings → Notifications." };
+    return { ok: true, message: res.category === "all" ? "Done — we won't email you notifications any more." : `Done — no more emails about ${emails.EMAIL_CATEGORIES[res.category].label.toLowerCase()}.` };
+  } catch (e) {
+    return fail(e);
+  }
 }
 
 /* -------------------------- notifications & support ------------------------- */

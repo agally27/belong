@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
+import { flushEmailOutbox, queueDailyDigests } from "@/lib/services/email-notifications";
 import { runNetwork } from "@/lib/services/network";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,11 @@ async function handle(req: Request) {
   if (given.length !== expected.length || !timingSafeEqual(given, expected)) {
     return NextResponse.json({ error: "Unauthorised." }, { status: 401 });
   }
-  return NextResponse.json(await runNetwork());
+  const network = await runNetwork();
+  // Daily summaries, then send anything waiting (including emails a failed send left behind).
+  const digests = await queueDailyDigests();
+  const emails = await flushEmailOutbox(200);
+  return NextResponse.json({ ...network, digestsQueued: digests, emails });
 }
 
 // Schedulers differ: some send POST, some (e.g. Vercel Cron) send GET. Both need the secret.

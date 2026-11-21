@@ -5,6 +5,7 @@ import { ActionButton } from "@/components/forms";
 import { Card, Notice, PageHeader, SectionTitle, Stat, timeAgo } from "@/components/ui";
 import { env } from "@/lib/config";
 import { getPaymentProvider } from "@/lib/adapters/payments";
+import { emailConfigured } from "@/lib/adapters/notifications";
 import { listTickets, overview } from "@/lib/services/admin";
 import { aiStatus } from "@/lib/services/companion";
 import { requireAdmin } from "@/lib/session";
@@ -54,6 +55,7 @@ export default async function AdminOverviewPage() {
               ["Companion AI", ai.simulated ? "Built-in simulation (no API key)" : "Claude (live)"],
               ["Payments", getPaymentProvider().simulated ? "Simulated (no provider connected)" : getPaymentProvider().name],
               ["Database", process.env.DATABASE_URL ? "PostgreSQL" : "Local SQLite file"],
+              ["Email", emailConfigured() ? "Resend (live)" : env.demoMode() ? "Development outbox (demo)" : "Not configured — nothing is sent"],
               ["Matching engine", "Local · independent of AI"],
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between gap-4 rounded-xl bg-ivory px-4 py-3">

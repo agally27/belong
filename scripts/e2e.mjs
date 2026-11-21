@@ -67,7 +67,7 @@ async function visit(page, path, label, { shot = true } = {}) {
 const SHOT_OK = (shot) => Boolean(SHOTS && shot);
 
 const MARKETING = ["/", "/pricing", "/about", "/safety", "/privacy", "/terms", "/support", "/login", "/register", "/forgot-password"];
-const MEMBER = ["/dashboard", "/companion", "/companion/settings", "/memories", "/discover", "/live", "/introductions", "/messages", "/connections", "/circles", "/gatherings", "/events", "/graph", "/profile", "/settings", "/settings/privacy", "/membership", "/notifications", "/help"];
+const MEMBER = ["/dashboard", "/companion", "/companion/settings", "/memories", "/discover", "/live", "/introductions", "/messages", "/connections", "/circles", "/gatherings", "/events", "/graph", "/profile", "/settings", "/settings/privacy", "/settings/notifications", "/membership", "/notifications", "/help"];
 const ADMIN = ["/admin", "/admin/users", "/admin/signals", "/admin/matching", "/admin/introductions", "/admin/circles", "/admin/gatherings", "/admin/moderation", "/admin/subscriptions", "/admin/analytics", "/admin/flags", "/admin/audit"];
 
 const browser = await chromium.launch();
@@ -155,6 +155,14 @@ try {
   await page.waitForSelector("text=Email confirmed");
   await page.goto(BASE + "/companion", { waitUntil: "networkidle" });
   ok((await page.locator("text=Please confirm your email address").count()) === 0, "banner disappears once confirmed");
+
+  // Opt in to introduction emails (nothing is emailed by default).
+  await page.goto(BASE + "/settings/notifications", { waitUntil: "networkidle" });
+  ok((await page.locator('input[name="categories"]:checked').count()) === 0, "no email categories are on by default");
+  await page.check('input[name="categories"][value="introductions"]');
+  await page.click("button:has-text('Save email preferences')");
+  await page.waitForSelector("text=Email preferences saved");
+  await page.goto(BASE + "/companion", { waitUntil: "networkidle" });
   ok(await page.locator("text=Willow").first().isVisible(), "companion should use the chosen name");
   ok(await page.locator("text=Simulated companion").first().isVisible(), "simulated AI must be labelled");
 
@@ -204,6 +212,18 @@ try {
   await page.fill("#message-input", "Hello! Lovely to be introduced.");
   await page.keyboard.press("Enter");
   await page.waitForSelector("text=simulated reply from a fictional demo member");
+
+  // The accepted introduction produced an email (sent after the response); unsubscribe from it.
+  await page.goto(BASE + "/dev/outbox", { waitUntil: "networkidle" });
+  const connectedMail = page.locator(`li:has-text("${email}"):has-text("You're connected")`).first();
+  ok(await connectedMail.isVisible(), "an introduction email reaches the outbox once the member opted in");
+  ok(!/Lovely to be introduced/.test(await page.locator("main").innerText()), "message text never appears in emails");
+  await connectedMail.locator('a[href*="/email/unsubscribe"]').click();
+  await page.waitForSelector("text=Stop emails about introductions?");
+  await page.click("button:has-text('Unsubscribe')");
+  await page.waitForSelector("text=no more emails about introductions");
+  await page.goto(BASE + "/settings/notifications", { waitUntil: "networkidle" });
+  ok(!(await page.isChecked('input[name="categories"][value="introductions"]')), "unsubscribing turns the category off");
   ok(true, "messaging works after mutual approval; simulated reply is labelled");
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/journey-conversation.png`, fullPage: true });
 

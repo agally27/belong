@@ -140,6 +140,8 @@ export async function exportUserData(userId: string) {
     reportsMade: await many("SELECT reason, detail, status, created_at FROM reports WHERE reporter_id = ?"),
     subscription: await one("SELECT plan_id, status, started_at, renews_at FROM subscriptions WHERE user_id = ?"),
     notifications: await many("SELECT type, title, body, created_at, read_at FROM notifications WHERE user_id = ?"),
+    emailPreferences: await one("SELECT categories, frequency, last_digest_at, updated_at FROM email_preferences WHERE user_id = ?"),
+    emailsSent: await many("SELECT category, subject, status, created_at, sent_at FROM email_outbox WHERE user_id = ? ORDER BY created_at DESC"),
     meetingFeedback: await many("SELECT subject_type, met, rating, created_at, updated_at FROM meeting_feedback WHERE user_id = ?"),
     supportTickets: await many("SELECT subject, body, status, created_at FROM support_tickets WHERE user_id = ?"),
   };

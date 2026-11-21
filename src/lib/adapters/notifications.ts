@@ -12,7 +12,7 @@ export interface OutboundNotification {
 
 export interface EmailProvider {
   readonly name: string;
-  send(msg: { to: string; subject: string; text: string }): Promise<void>;
+  send(msg: { to: string; subject: string; text: string; headers?: Record<string, string> }): Promise<void>;
 }
 
 export interface PushProvider {
@@ -24,6 +24,7 @@ export interface OutboxEmail {
   to: string;
   subject: string;
   text: string;
+  headers?: Record<string, string>;
   sentAt: string;
 }
 
@@ -50,7 +51,7 @@ const resendEmail: EmailProvider = {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.EMAIL_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: process.env.EMAIL_FROM, to: [msg.to], subject: msg.subject, text: msg.text }),
+      body: JSON.stringify({ from: process.env.EMAIL_FROM, to: [msg.to], subject: msg.subject, text: msg.text, ...(msg.headers ? { headers: msg.headers } : {}) }),
     });
     if (!res.ok) throw new Error(`Resend responded ${res.status}`);
   },

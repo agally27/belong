@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRight, CreditCard, LifeBuoy, ShieldCheck, Sparkles, UserRound } from "lucide-react";
+import { ChevronRight, CreditCard, LifeBuoy, Mail, ShieldCheck, Sparkles, UserRound } from "lucide-react";
 import { changePasswordAction, logoutAction, resendVerificationAction } from "@/app/actions";
 import { ActionButton, ActionForm, SubmitButton } from "@/components/forms";
 import { Button, Card, Field, PageHeader, formatDate } from "@/components/ui";
@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/profile", icon: UserRound, title: "Profile", body: "Your name, area, interests and how you like to meet." },
   { href: "/companion/settings", icon: Sparkles, title: "Companion", body: "Its name, voice and how forward it is." },
   { href: "/settings/privacy", icon: ShieldCheck, title: "Privacy & consent", body: "What's shared, blocked members, data export and account deletion." },
+  { href: "/settings/notifications", icon: Mail, title: "Email notifications", body: "Choose what, if anything, we email you." },
   { href: "/membership", icon: CreditCard, title: "Membership", body: "Your plan and what it includes." },
   { href: "/help", icon: LifeBuoy, title: "Help & support", body: "Answers, safety guidance and a way to reach us." },
 ];

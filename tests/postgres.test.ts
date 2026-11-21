@@ -29,7 +29,7 @@ describe.skipIf(!url)("PostgreSQL driver", () => {
     const db = await createPostgresDb(url!);
     try {
       await db.exec("DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
-      expect(await migrate(db)).toEqual(["0001_init.sql", "0002_local_and_gatherings.sql", "0003_feedback.sql", "0004_host_tools.sql", "0005_life_stage_and_bridges.sql", "0006_account_tokens.sql"]);
+      expect(await migrate(db)).toEqual(["0001_init.sql", "0002_local_and_gatherings.sql", "0003_feedback.sql", "0004_host_tools.sql", "0005_life_stage_and_bridges.sql", "0006_account_tokens.sql", "0007_email_notifications.sql"]);
       expect(await migrate(db)).toEqual([]); // idempotent
       // Several instances starting at once (e.g. serverless cold starts) don't trip over each other.
       await db.exec("DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
@@ -62,6 +62,14 @@ describe.skipIf(!url)("PostgreSQL driver", () => {
         expect((await introductionStats(admin!.id)).connected).toBeGreaterThan(0);
         expect((await gatheringStats(admin!.id)).byStatus.proposed).toBeGreaterThan(0);
         expect((await listSignalsAdmin(admin!.id, 2)).signals.page).toBe(2);
+        // Notification emails: queue, claim and send on PostgreSQL.
+        const emailsSvc = await import("@/lib/services/email-notifications");
+        const { notify } = await import("@/lib/services/core");
+        await emailsSvc.setEmailPreferences(user.id, { categories: ["circles"], frequency: "instant" });
+        await notify(user.id, "circle", "Welcome to a Circle", "");
+        const sentNow = await Promise.all([emailsSvc.flushEmailOutbox(), emailsSvc.flushEmailOutbox()]);
+        expect(sentNow[0].sent + sentNow[1].sent).toBe(1);
+        expect(await emailsSvc.unsubscribe(await emailsSvc.unsubscribeToken(user.id, "all"))).toEqual({ category: "all" });
         const { listCircles } = await import("@/lib/services/circles");
         expect((await listCircles(user.id)).mine.length).toBeGreaterThan(0);
         expect((await analytics(admin!.id)).funnel[0].n).toBeGreaterThanOrEqual(10);

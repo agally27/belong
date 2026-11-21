@@ -35,11 +35,16 @@ export default async function NotificationsPage({ searchParams }: { searchParams
         title="What's new"
         description={unread ? `${unread} unread.` : "You're all caught up."}
         actions={
-          unread > 0 && (
-            <ActionButton action={markAllNotificationsReadAction} variant="outline">
-              Mark all as read
-            </ActionButton>
-          )
+          <>
+            <Link href="/settings/notifications" className="text-sm font-medium text-lavender-600 underline">
+              Email preferences
+            </Link>
+            {unread > 0 && (
+              <ActionButton action={markAllNotificationsReadAction} variant="outline">
+                Mark all as read
+              </ActionButton>
+            )}
+          </>
         }
       />
       {items.length ? (

@@ -133,3 +133,11 @@ PostgreSQL journey passes with all three migrations; browser run 421 checks, 0 p
 - `docs/DEPLOYMENT.md` rewritten as a Vercel + Supabase step-by-step.
 - Tests: `tests/deploy-config.test.ts` (2); PostgreSQL test now runs four migrators at once. Total 123 passed, 1 skipped.
 - **Not done:** no actual Vercel or Supabase deployment (needs the owner's accounts).
+
+## 2026-11-21 · Optional notification emails
+
+- Migration `0007`, `services/email-notifications.ts`, `/settings/notifications`, `/email/unsubscribe`,
+  `POST /api/email/unsubscribe`; queued from `notify()`, sent via `after()` and by the scheduled run (with daily summaries).
+- Admin overview shows the email status; data export includes email preferences and sent-email history.
+- Tests: `tests/email.test.ts` (7); PostgreSQL test covers queue/claim/send/unsubscribe. Total 130 passed, 1 skipped.
+  Browser run 458 checks, 0 problems (opt in, receive "You're connected" in the outbox, unsubscribe from the link).

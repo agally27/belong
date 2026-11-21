@@ -114,4 +114,7 @@ export async function notify(userId: string, type: string, title: string, body =
   );
   const { deliverNotification } = await import("../adapters/notifications");
   await deliverNotification(userId, { type, title, body, href });
+  // Optional email, queued in the same transaction and sent afterwards.
+  const { enqueueNotificationEmail } = await import("./email-notifications");
+  await enqueueNotificationEmail(userId, type, title, body, href);
 }
